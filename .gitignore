@@ -1,0 +1,50 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+.venv/
+venv/
+ENV/
+
+# Environnements
+.env
+.env.*
+
+# SQLite
+*.db
+
+# VSCode
+.vscode/
+
+# Mac/Linux/Windows
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Streamlit
+.streamlit/
+
+# Autres fichiers temporaires
+*.swp
+*.swo
+
+# Panel Streamlit
+panel/__pycache__/
+
+# Database Python
+/database/python/__pycache__/
+
+# Database JS
+/database/js/*.log
