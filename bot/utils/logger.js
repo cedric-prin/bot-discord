@@ -1,1 +1,24 @@
 // Utilitaire logger
+const colors = {
+  reset: '\x1b[0m',
+  bright: '\x1b[1m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+  magenta: '\x1b[35m',
+  cyan: '\x1b[36m',
+};
+
+function log(level, message) {
+  const timestamp = new Date().toISOString();
+  const color = colors[level] || colors.reset;
+  console.log(`${color}[${timestamp}] [${level.toUpperCase()}]${colors.reset} ${message}`);
+}
+
+module.exports = {
+  info: (message) => log('green', message),
+  warn: (message) => log('yellow', message),
+  error: (message) => log('red', message),
+  debug: (message) => log('blue', message),
+};
