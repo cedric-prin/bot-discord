@@ -1,24 +1,43 @@
 // Utilitaire logger
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m',
-};
+const winston = require('winston');
+const path = require('path');
 
-function log(level, message) {
-  const timestamp = new Date().toISOString();
-  const color = colors[level] || colors.reset;
-  console.log(`${color}[${timestamp}] [${level.toUpperCase()}]${colors.reset} ${message}`);
+// Créer le dossier logs s'il n'existe pas
+const fs = require('fs');
+const logsDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
 }
 
-module.exports = {
-  info: (message) => log('green', message),
-  warn: (message) => log('yellow', message),
-  error: (message) => log('red', message),
-  debug: (message) => log('blue', message),
-};
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'discord-bot' },
+  transports: [
+    new winston.transports.File({ filename: path.join(logsDir, 'error.log'), level: 'error' }),
+    new winston.transports.File({ filename: path.join(logsDir, 'combined.log') }),
+  ],
+});
+
+// Console avec couleurs et format simple
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.timestamp({ format: 'HH:mm:ss' }),
+      winston.format.printf(({ timestamp, level, message, ...meta }) => {
+        let msg = `${timestamp} [${level}]: ${message}`;
+        if (Object.keys(meta).length) {
+          msg += ` ${JSON.stringify(meta)}`;
+        }
+        return msg;
+      })
+    ),
+  }));
+}
+
+module.exports = logger;
