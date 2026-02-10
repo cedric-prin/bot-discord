@@ -182,6 +182,25 @@ const sanctionRepo = {
       [guildId]
     );
   },
+
+  /**
+   * Révoque tous les mutes actifs pour un utilisateur dans une guild
+   * et enregistre une sanction "unmute" pour l'historique.
+   */
+  async revokeActiveMute(guildId, userId, moderatorId, reason) {
+    const revokedCount = await this.deactivateByUserAndType(userId, guildId, 'mute');
+
+    const unmuteSanction = await this.create({
+      guildId,
+      userId,
+      moderatorId,
+      type: 'unmute',
+      reason: reason || 'Unmute sans raison spécifiée',
+      duration: null,
+    });
+
+    return { revokedCount, unmuteSanction };
+  },
 };
 
 module.exports = sanctionRepo;
