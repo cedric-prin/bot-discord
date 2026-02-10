@@ -52,7 +52,8 @@ module.exports = {
     const { channel, user: moderator, guild } = interaction;
 
     // 2. VÉRIFICATIONS PERMISSIONS (spécifique à clear)
-    const permCheck = await permissions.fullCheck(interaction, null, 'clear');
+    // Pour clear, on vérifie seulement les permissions du modérateur sur le channel
+    const permCheck = await permissions.checkCommandPermission(interaction.member, 'clear');
     if (!permCheck.allowed) {
       return interaction.reply({
         embeds: [embed.error('Permission refusée', permCheck.reason)],
@@ -160,7 +161,7 @@ module.exports = {
    */
   async logClearAction(guild, logData) {
     try {
-      const { IDS } = require('../../config/constants');
+      const { IDS } = require('../../../config/constants');
       const logChannelId = IDS.LOGS_CHANNEL;
       
       if (!logChannelId) return; // Pas de channel de logs configuré

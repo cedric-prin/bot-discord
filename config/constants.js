@@ -73,6 +73,7 @@ module.exports = {
   IDS: {
     // À adapter selon ton serveur si besoin
     LOGS_CHANNEL: null, // Remplacer par l'ID du channel de logs
+    MOD_LOGS_CHANNEL: null, // Remplacer par l'ID du channel de logs de modération
     MOD_ROLE: null, // Remplacer par l'ID du rôle modérateur
     ADMIN_ROLE: null, // Remplacer par l'ID du rôle administrateur
   },

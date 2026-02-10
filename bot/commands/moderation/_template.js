@@ -140,7 +140,7 @@ module.exports = {
    */
   async logModAction(guild, logData) {
     try {
-      const { IDS } = require('../../config/constants');
+      const { IDS } = require('../../../config/constants');
       const logChannelId = IDS.LOGS_CHANNEL;
       
       if (!logChannelId) return; // Pas de channel de logs configuré

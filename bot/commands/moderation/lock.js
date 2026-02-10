@@ -50,7 +50,8 @@ module.exports = {
     const { guild, user: moderator } = interaction;
 
     // 2. VÉRIFICATIONS PERMISSIONS
-    const permCheck = await permissions.fullCheck(interaction, null, 'lock');
+    // Pour lock, on vérifie seulement les permissions du modérateur sur le channel
+    const permCheck = await permissions.checkCommandPermission(interaction.member, 'lock');
     if (!permCheck.allowed) {
       return interaction.reply({
         embeds: [embed.error('Permission refusée', permCheck.reason)],
@@ -153,7 +154,7 @@ module.exports = {
    */
   async logLockAction(guild, logData) {
     try {
-      const { IDS } = require('../../config/constants');
+      const { IDS } = require('../../../config/constants');
       const logChannelId = IDS.LOGS_CHANNEL;
       
       if (!logChannelId) return; // Pas de channel de logs configuré
