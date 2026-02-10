@@ -1,22 +1,36 @@
 {
   "name": "discord-mod-bot",
   "version": "1.0.0",
+  "description": "Bot Discord de modération Cardinal avec panel Streamlit",
   "main": "bot/index.js",
   "scripts": {
     "start": "node bot/index.js",
     "dev": "nodemon bot/index.js",
     "deploy": "node deploy-commands.js",
-    "deploy:global": "node deploy-commands.js --global"
+    "deploy:global": "node deploy-commands.js --global",
+    "panel": "streamlit run panel/app.py",
+    "install:all": "npm install && pip install -r requirements.txt",
+    "setup": "npm install && pip install -r requirements.txt && node deploy-commands.js --global"
   },
+  "keywords": ["discord", "bot", "moderation", "streamlit", "panel"],
+  "author": "Cardinal Team",
+  "license": "MIT",
   "dependencies": {
     "discord.js": "^14.25.1",
     "dotenv": "^16.6.1",
     "ms": "^2.1.3",
     "openai": "^4.20.1",
     "sqlite3": "^5.1.7",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "axios": "^1.6.0",
+    "moment": "^2.29.4",
+    "chalk": "^4.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
   }
 }

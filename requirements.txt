@@ -5,3 +5,18 @@ python-dotenv>=1.0.0
 requests>=2.31.0
 openai>=1.6.0
 # anthropic>=0.8.0
+
+# Database utilities
+sqlite3
+
+# Data manipulation
+numpy>=1.24.0
+
+# Charts and visualization
+matplotlib>=3.8.0
+
+# Date handling
+python-dateutil>=2.8.0
+
+# JSON handling
+ujson>=5.8.0
