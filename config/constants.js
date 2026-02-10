@@ -13,6 +13,31 @@ module.exports = {
     OFFLINE: 0x747F8D,
   },
 
+  // Couleurs spécifiques pour les actions de modération
+  MODERATION: {
+    ban: 0xFF0000,
+    kick: 0xFF6600,
+    mute: 0xFFA500,
+    warn: 0xFFFF00,
+    unban: 0x00FF00,
+    unmute: 0x00FF00
+  },
+
+  EMOJIS: {
+    SUCCESS: '✅',
+    ERROR: '❌',
+    WARNING: '⚠️',
+    INFO: 'ℹ️',
+    MODERATION: {
+      ban: '🔨',
+      kick: '👢',
+      mute: '🔇',
+      warn: '⚠️',
+      unban: '🔓',
+      unmute: '🔊'
+    }
+  },
+
   MESSAGES: {
     NO_PERMISSION: 'Tu n\'as pas la permission d\'utiliser cette commande.',
     BOT_NO_PERMISSION: 'Je n\'ai pas la permission nécessaire pour faire ça.',
@@ -34,6 +59,15 @@ module.exports = {
     MANAGE_MESSAGES: 'ManageMessages',
     MANAGE_CHANNELS: 'ManageChannels',
     ADMINISTRATOR: 'Administrator',
+    // Permissions par commande pour le service de permissions
+    BAN: ['BanMembers'],
+    KICK: ['KickMembers'],
+    MUTE: ['ModerateMembers'],
+    WARN: ['ManageMessages'],
+    CLEAR: ['ManageMessages'],
+    LOCK: ['ManageChannels'],
+    UNLOCK: ['ManageChannels'],
+    SLOWMODE: ['ManageChannels']
   },
 
   IDS: {
