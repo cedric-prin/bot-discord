@@ -16,7 +16,7 @@ const config = {
         guildId: getEnvVar('DISCORD_GUILD_ID', false),
     },
     database: {
-        path: getEnvVar('DATABASE_PATH', false, './database/db.sqlite'),
+        path: getEnvVar('DATABASE_PATH', false, './database/cardinal.db'),
     },
     channels: {
         logs: getEnvVar('CHANNEL_LOGS', false),

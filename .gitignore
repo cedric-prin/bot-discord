@@ -48,3 +48,7 @@ panel/__pycache__/
 
 # Database JS
 /database/js/*.log
+
+# Database SQL
+/database/migrations.sql
+create_db.ps1
