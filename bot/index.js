@@ -1,7 +1,7 @@
 // Point d'entrée du bot Discord
 require('dotenv').config();
 
-const config = require('../../config/config');
+const config = require('../config/config');
 const client = require('./bot');
 const logger = require('./utils/logger');
 const loadCommands = require('./handlers/commandHandler');

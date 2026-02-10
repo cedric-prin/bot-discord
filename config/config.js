@@ -23,7 +23,7 @@ const config = {
         modLogs: getEnvVar('CHANNEL_MODLOGS', false),
     },
     panel: {
-        secretKey: getEnvVar('PANEL_SECRET_KEY', true),
+        secretKey: getEnvVar('PANEL_SECRET_KEY', false, 'default_secret_key'),
     },
     ai: {
         openaiKey: getEnvVar('OPENAI_KEY', false),
