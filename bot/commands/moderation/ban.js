@@ -3,9 +3,9 @@ const embed = require('../../services/embedBuilder');
 const permissions = require('../../services/permissions');
 const validators = require('../../utils/validators');
 const timeParser = require('../../utils/timeParser');
-const sanctionRepo = require('../../repositories/sanctionRepo');
-const userRepo = require('../../repositories/userRepo');
-const guildRepo = require('../../repositories/guildRepo');
+const sanctionRepo = require('../../../database/js/repositories/sanctionRepo');
+const userRepo = require('../../../database/js/repositories/userRepo');
+const guildRepo = require('../../../database/js/repositories/guildRepo');
 const logger = require('../../utils/logger');
 
 module.exports = {
