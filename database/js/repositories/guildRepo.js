@@ -48,6 +48,11 @@ const guildRepo = {
     return row ? new Guild(row) : null;
   },
 
+  // Alias pratique pour récupérer les "settings" de la guild
+  async getSettings(guildId) {
+    return this.findById(guildId);
+  },
+
   findOrCreate(guildId, guildName) {
     // Atomique: transaction + INSERT OR IGNORE + SELECT
     return new Promise((resolve, reject) => {
