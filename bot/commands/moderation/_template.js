@@ -12,8 +12,8 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const embed = require('../../services/embedBuilder');
 const permissions = require('../../services/permissions');
-const sanctionRepo = require('../../database/js/repositories/sanctionRepo');
-const Sanction = require('../../database/js/models/Sanction');
+const sanctionRepo = require('../../../database/js/repositories/sanctionRepo');
+const Sanction = require('../../../database/js/models/Sanction');
 
 module.exports = {
   // ========================================

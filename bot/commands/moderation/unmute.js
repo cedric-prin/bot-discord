@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const embed = require('../../services/embedBuilder');
 const permissions = require('../../services/permissions');
-const sanctionRepo = require('../../database/js/repositories/sanctionRepo');
+const sanctionRepo = require('../../../database/js/repositories/sanctionRepo');
 const modLogger = require('../../services/modLogger');
 const logger = require('../../utils/logger');
 

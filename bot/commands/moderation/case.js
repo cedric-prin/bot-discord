@@ -5,7 +5,7 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const embed = require('../../services/embedBuilder');
-const sanctionRepo = require('../../database/js/repositories/sanctionRepo');
+const sanctionRepo = require('../../../database/js/repositories/sanctionRepo');
 const logger = require('../../utils/logger');
 
 const ACTION_EMOJIS = { 

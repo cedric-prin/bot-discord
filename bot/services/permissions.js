@@ -1,6 +1,6 @@
 // Service permissions
 const { PermissionFlagsBits } = require('discord.js');
-const { PERMISSIONS } = require('../config/constants');
+const { PERMISSIONS } = require('../../config/constants');
 
 class PermissionService {
   

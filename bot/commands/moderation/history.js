@@ -5,8 +5,8 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const embed = require('../../services/embedBuilder');
-const warningRepo = require('../../database/js/repositories/warningRepo');
-const sanctionRepo = require('../../database/js/repositories/sanctionRepo');
+const warningRepo = require('../../../database/js/repositories/warningRepo');
+const sanctionRepo = require('../../../database/js/repositories/sanctionRepo');
 const logger = require('../../utils/logger');
 
 module.exports = {

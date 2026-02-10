@@ -1,6 +1,6 @@
 // Service embedBuilder
 const { EmbedBuilder } = require('discord.js');
-const { COLORS, EMOJIS } = require('../config/constants');
+const { COLORS, EMOJIS } = require('../../config/constants');
 
 class EmbedService {
   
