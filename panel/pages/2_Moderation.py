@@ -12,6 +12,20 @@ from panel.components.sidebar import render_sidebar, get_selected_guild_id
 
 st.set_page_config(page_title="Modération", page_icon="⚔️", layout="wide")
 
+# Fonction utilitaire pour formatter les dates
+def format_date(date_str):
+    if not date_str or date_str == '':
+        return '-'
+    try:
+        from datetime import datetime
+        if isinstance(date_str, str):
+            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            return dt.strftime('%d/%m/%Y %H:%M')
+        else:
+            return date_str.strftime('%d/%m/%Y %H:%M')
+    except:
+        return str(date_str)
+
 @require_auth
 def main():
     render_sidebar()
@@ -102,7 +116,7 @@ def main():
                     with col4:
                         st.text(f"{str(row['reason'])[:50]}..." if len(str(row['reason'])) > 50 else row['reason'])
                     with col5:
-                        st.text(row['created_at'].strftime('%d/%m/%y') if row['created_at'] else '-')
+                        st.text(format_date(row['created_at']))
                 
                 # Bouton suppression
                 if selected_ids:
@@ -194,7 +208,7 @@ def main():
                         f"{'🟢' if sanction['active'] else '⚫'} "
                         f"**{sanction['type'].upper()}** - "
                         f"User: {sanction['user_id']} - "
-                        f"{sanction['created_at'].strftime('%d/%m/%Y %H:%M') if sanction['created_at'] else '-'}"
+                        f"{format_date(sanction['created_at'])}"
                     ):
                         col1, col2 = st.columns(2)
                         
@@ -293,9 +307,24 @@ def main():
                 
                 st.markdown(f"### ⚠️ Warnings ({len(user_warnings)})")
                 if user_warnings:
+                    # Fonction pour formatter les dates (format court)
+                    def format_date_short(date_str):
+                        if not date_str or date_str == '':
+                            return '-'
+                        try:
+                            from datetime import datetime
+                            if isinstance(date_str, str):
+                                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                                return dt.strftime('%d/%m/%y')
+                            else:
+                                return date_str.strftime('%d/%m/%y')
+                        except:
+                            return str(date_str)
+                    
+                    # Formatter les dates dans le DataFrame
                     df = pd.DataFrame(user_warnings)
-                    st.dataframe(df[['id', 'reason', 'moderator_id', 'created_at']], 
-                                use_container_width=True, hide_index=True)
+                    df['created_at'] = df['created_at'].apply(format_date_short)
+                    st.dataframe(df[['id', 'reason', 'moderator_id', 'created_at']], use_container_width=True, hide_index=True)
                 else:
                     st.success("Aucun warning")
                 

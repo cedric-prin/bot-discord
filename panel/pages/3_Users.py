@@ -53,11 +53,12 @@ def main():
                 SELECT 
                     u.user_id,
                     u.username,
-                    u.created_at,
+                    u.server_username,
+                    u.joined_at,
                     COUNT(w.id) as warning_count
                 FROM users u
                 LEFT JOIN warnings w ON u.user_id = w.user_id AND u.guild_id = w.guild_id
-                WHERE u.guild_id = ?
+                WHERE u.guild_id = ? AND u.is_active = 1
             """
             params = [guild_id]
             
@@ -65,7 +66,7 @@ def main():
                 query += " AND (u.user_id LIKE ? OR u.username LIKE ?)"
                 params.extend([f"%{search}%", f"%{search}%"])
             
-            query += " GROUP BY u.user_id, u.username, u.created_at"
+            query += " GROUP BY u.user_id, u.username, u.server_username"
             
             if filter_warnings == "Avec warnings":
                 query += " HAVING warning_count > 0"
@@ -86,14 +87,50 @@ def main():
                     users.append({
                         'user_id': row[0],
                         'username': row[1],
-                        'created_at': row[2],
-                        'warning_count': row[3]
+                        'server_username': row[2],
+                        'joined_at': row[3],
+                        'warning_count': row[4]
                     })
                 
                 df = pd.DataFrame(users)
                 
-                # Formatter les colonnes
-                df['user_id'] = df['user_id'].astype(str)
+                # Formatter les dates
+                def format_date(date_input):
+                    if not date_input or date_input == '':
+                        return '?'
+                    try:
+                        from datetime import datetime
+                        # Si c'est déjà un objet datetime
+                        if hasattr(date_input, 'strftime'):
+                            return date_input.strftime('%d/%m/%Y %H:%M')
+                        # Si c'est une chaîne de caractères
+                        elif isinstance(date_input, str):
+                            # Essayer différents formats
+                            formats = [
+                                '%Y-%m-%d %H:%M:%S',
+                                '%Y-%m-%dT%H:%M:%S',
+                                '%Y-%m-%dT%H:%M:%SZ',
+                                '%Y-%m-%dT%H:%M:%S.%f',
+                                '%Y-%m-%dT%H:%M:%S.%fZ'
+                            ]
+                            for fmt in formats:
+                                try:
+                                    dt = datetime.strptime(date_input, fmt)
+                                    return dt.strftime('%d/%m/%Y %H:%M')
+                                except ValueError:
+                                    continue
+                            # Si aucun format ne marche, essayer fromisoformat
+                            try:
+                                dt = datetime.fromisoformat(date_input.replace('Z', '+00:00'))
+                                return dt.strftime('%d/%m/%Y %H:%M')
+                            except:
+                                return str(date_input)[:16]  # Retourner les 16 premiers caractères
+                        else:
+                            return str(date_input)
+                    except Exception as e:
+                        return str(date_input)[:16] if date_input else '?'
+                
+                df['joined_at'] = df['joined_at'].apply(format_date)
                 
                 # Ajouter indicateur couleur
                 def get_risk_color(count):
@@ -108,8 +145,8 @@ def main():
                 df['risk'] = df['warning_count'].apply(get_risk_color)
                 
                 # Réorganiser colonnes
-                df = df[['risk', 'user_id', 'username', 'warning_count', 'created_at']]
-                df.columns = ['Risk', 'User ID', 'Username', 'Warnings', 'Joined']
+                df = df[['risk', 'user_id', 'username', 'server_username', 'joined_at', 'warning_count']]
+                df.columns = ['Risk', 'User ID', 'Username', 'Server Username', 'Joined', 'Warnings']
                 
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 
@@ -162,7 +199,7 @@ def main():
                     fig = px.pie(
                         df, values='count', names='category',
                         title="Distribution des warnings",
-                        color_discrete_sequence=px.colors.sequential.RdYlGn_r
+                        color_discrete_sequence=['#FF6B6B', '#FFA06B', '#FFD06B', '#6BFF6B', '#6B6BFF']
                     )
                     fig.update_layout(showlegend=False, transition_duration=0)
                     fig.update_traces(hovertemplate=None, hoverinfo='none')
@@ -172,10 +209,10 @@ def main():
                 # Nouveaux utilisateurs par mois
                 cursor.execute("""
                     SELECT 
-                        strftime('%Y-%m', created_at) as month,
+                        strftime('%Y-%m', joined_at) as month,
                         COUNT(*) as count
                     FROM users
-                    WHERE guild_id = ? AND created_at IS NOT NULL
+                    WHERE guild_id = ? AND joined_at IS NOT NULL AND is_active = 1
                     GROUP BY month
                     ORDER BY month DESC
                     LIMIT 12
@@ -211,12 +248,13 @@ def main():
                 SELECT 
                     u.user_id,
                     u.username,
+                    u.server_username,
                     COUNT(w.id) as warning_count,
                     MAX(w.created_at) as last_warning
                 FROM users u
                 JOIN warnings w ON u.user_id = w.user_id AND u.guild_id = w.guild_id
-                WHERE u.guild_id = ?
-                GROUP BY u.user_id, u.username
+                WHERE u.guild_id = ? AND u.is_active = 1
+                GROUP BY u.user_id, u.username, u.server_username
                 HAVING warning_count >= 3
                 ORDER BY warning_count DESC
                 LIMIT 20
@@ -242,11 +280,14 @@ def main():
                         
                         with col1:
                             st.markdown(f"**User ID:** `{user['user_id']}`")
+                            st.markdown(f"**Username:** `{user['username']}`")
+                            st.markdown(f"**Server Username:** `{user['server_username']}`")
                             st.markdown(f"**Warnings:** {user['warning_count']}")
                         
                         with col2:
                             if user['last_warning']:
-                                st.markdown(f"**Dernier warning:** {user['last_warning'].strftime('%d/%m/%Y %H:%M')}")
+                                formatted_date = format_date(user['last_warning'])
+                                st.markdown(f"**Dernier warning:** {formatted_date}")
                         
                         # Détails des warnings
                         cursor.execute("""
@@ -267,7 +308,8 @@ def main():
                                     'moderator_id': w_row[1],
                                     'created_at': w_row[2]
                                 }
-                                st.markdown(f"- {w['created_at'].strftime('%d/%m') if w['created_at'] else '?'}: {w['reason']}")
+                                formatted_date = format_date(w['created_at'])
+                                st.markdown(f"- {formatted_date}: {w['reason']}")
             else:
                 st.success("🎉 Aucun utilisateur à surveiller!")
         

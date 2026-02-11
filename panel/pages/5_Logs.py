@@ -206,7 +206,7 @@ def main():
             for log in all_logs:
                 icon = type_icons.get(log['type'], '📋')
                 color = type_colors.get(log['type'], '#FFFFFF')
-                timestamp = log['created_at'].strftime('%d/%m/%Y %H:%M') if log['created_at'] else 'N/A'
+                timestamp = log['created_at']
                 
                 st.markdown(f"""
                 <div style="

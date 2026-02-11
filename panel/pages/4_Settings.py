@@ -37,7 +37,7 @@ def main():
             return
         
         # Parser config JSON avec gestion d'erreur
-        config_str = guild_data_raw[7] if len(guild_data_raw) > 7 else None  # automod_config
+        config_str = guild_data_raw[14] if len(guild_data_raw) > 14 else None  # automod_config (index 14)
         
         config = {}
         
@@ -87,13 +87,13 @@ def main():
                     
                     admin_role = st.text_input(
                         "👑 Rôle Administrateur",
-                        value=config.get('admin_role', ''),
+                        value=config.get('admin_role') or guild_data_raw[11],  # admin_role_id (index 11)
                         help="ID du rôle ayant accès à toutes les commandes"
                     )
                 
                 mute_role = st.text_input(
                     "🔇 Rôle Mute",
-                    value=config.get('mute_role', ''),
+                    value=config.get('mute_role') or guild_data_raw[10],  # mute_role_id (index 10)
                     help="ID du rôle appliqué lors d'un mute"
                 )
                 
@@ -271,7 +271,7 @@ def main():
                 }
                 
                 cursor.execute(
-                    "UPDATE guilds SET config = ? WHERE id = ?",
+                    "UPDATE guilds SET automod_config = ? WHERE id = ?",
                     (json.dumps(new_config), guild_id)
                 )
                 conn.commit()

@@ -65,8 +65,8 @@ def main():
         
         # Utilisateurs uniques
         cursor.execute("""
-            SELECT COUNT(DISTINCT discord_id) as total_users
-            FROM users WHERE guild_id = ?
+            SELECT COUNT(DISTINCT user_id) as total_users
+            FROM users WHERE guild_id = ? AND is_active = 1
         """, (guild_id,))
         user_stats = cursor.fetchone()
         
@@ -95,9 +95,6 @@ def main():
         with col4:
             st.metric("⛔ Actives", sanction_stats[2])
         
-        with col5:
-            delta = automod_stats[1] if automod_stats[1] > 0 else None
-            st.metric("🤖 AutoMod", automod_stats[0], delta=f"+{delta}" if delta else None)
         
         st.divider()
         

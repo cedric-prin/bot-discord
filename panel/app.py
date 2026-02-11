@@ -110,7 +110,7 @@ def main():
         guilds_count = cursor.fetchone()['count']
         
         # Nombre d'utilisateurs uniques
-        cursor.execute("SELECT COUNT(DISTINCT user_id) as count FROM users")
+        cursor.execute("SELECT COUNT(DISTINCT discord_id) as count FROM users WHERE is_active = 1")
         users_count = cursor.fetchone()['count']
         
         # Warnings aujourd'hui
