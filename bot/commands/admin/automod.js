@@ -182,7 +182,7 @@ module.exports = {
       logger.error('Erreur commande automod:', error);
       return interaction.reply({
         embeds: [embed.error('Erreur', 'Une erreur est survenue.')],
-        ephemeral: true
+        flags: [64]
       });
     }
   }
@@ -315,7 +315,7 @@ async function handleConfig(interaction, automod, guild) {
         'Paramètre invalide',
         `Paramètres disponibles pour **${filter}**: \`${available}\``
       )],
-      ephemeral: true
+      flags: [64]
     });
   }
   
@@ -333,7 +333,7 @@ async function handleConfig(interaction, automod, guild) {
     if (!validActions.includes(value.toLowerCase())) {
       return interaction.reply({
         embeds: [embed.error('Action invalide', `Actions valides: ${validActions.join(', ')}`)],
-        ephemeral: true
+        flags: [64]
       });
     }
     parsedValue = value.toLowerCase();
@@ -343,7 +343,7 @@ async function handleConfig(interaction, automod, guild) {
     if (isNaN(parsedValue) || parsedValue < 0) {
       return interaction.reply({
         embeds: [embed.error('Valeur invalide', 'Cette valeur doit être un nombre positif.')],
-        ephemeral: true
+        flags: [64]
       });
     }
   }
@@ -397,7 +397,7 @@ async function handleExempt(interaction, subcommand, automod, guild) {
   if (!role && !channel) {
     return interaction.reply({
       embeds: [embed.error('Erreur', 'Spécifiez un rôle ou un channel.')],
-      ephemeral: true
+      flags: [64]
     });
   }
   
@@ -459,7 +459,7 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
     if (words.length === 0) {
       return interaction.reply({
         embeds: [embed.info('🚫 Mots interdits', 'Aucun mot configuré.')],
-        ephemeral: true
+        flags: [64]
       });
     }
     
@@ -474,7 +474,7 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
         '🚫 Mots interdits',
         `${words.length} mot(s) configuré(s)\n\`\`\`${maskedWords.join(', ')}\`\`\``
       )],
-      ephemeral: true
+      flags: [64]
     });
   }
   
@@ -484,7 +484,7 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
     if (automod.badwords.words.includes(word)) {
       return interaction.reply({
         embeds: [embed.warning('Déjà présent', 'Ce mot est déjà dans la liste.')],
-        ephemeral: true
+        flags: [64]
       });
     }
     
@@ -494,7 +494,7 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
     
     return interaction.reply({
       embeds: [embed.success('Mot ajouté', `Le mot a été ajouté à la liste (${automod.badwords.words.length} total).`)],
-      ephemeral: true
+      flags: [64]
     });
   }
   
@@ -502,7 +502,7 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
     if (!automod.badwords.words.includes(word)) {
       return interaction.reply({
         embeds: [embed.warning('Non trouvé', 'Ce mot n\'est pas dans la liste.')],
-        ephemeral: true
+        flags: [64]
       });
     }
     
@@ -512,7 +512,7 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
     
     return interaction.reply({
       embeds: [embed.success('Mot retiré', `Le mot a été retiré de la liste.`)],
-      ephemeral: true
+      flags: [64]
     });
   }
 }

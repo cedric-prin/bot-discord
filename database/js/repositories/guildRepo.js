@@ -40,6 +40,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   'automod_config',
   'welcome_channel_id',
   'welcome_message',
+  'warn_thresholds',
 ]);
 
 const guildRepo = {
@@ -60,6 +61,14 @@ const guildRepo = {
         settings.automod = JSON.parse(row.automod_config);
       } catch (e) {
         settings.automod = {};
+      }
+    }
+    
+    if (row.warn_thresholds) {
+      try {
+        settings.warnThresholds = JSON.parse(row.warn_thresholds);
+      } catch (e) {
+        settings.warnThresholds = {};
       }
     }
     

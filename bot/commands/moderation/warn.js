@@ -163,18 +163,17 @@ module.exports = {
    */
   async checkThresholds(guildId, activeWarnings) {
     try {
+      // Récupérer les seuils personnalisés depuis la BDD
+      const guildSettings = await guildRepo.getSettings(guildId);
+      
       // Seuils par défaut (peuvent être configurés par serveur)
       const defaultThresholds = {
         mute: 3,
         kick: 5,
         ban: 7
       };
-
-      // TODO: Récupérer les seuils personnalisés depuis la BDD
-      // const guildSettings = await guildRepo.getSettings(guildId);
-      // const thresholds = guildSettings?.warnThresholds || defaultThresholds;
       
-      const thresholds = defaultThresholds;
+      const thresholds = guildSettings?.warnThresholds || defaultThresholds;
 
       if (activeWarnings >= thresholds.ban) {
         return { type: 'ban', count: thresholds.ban, severity: 'high' };

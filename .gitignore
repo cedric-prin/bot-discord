@@ -49,6 +49,8 @@ panel/__pycache__/
 # Database JS
 /database/js/*.log
 
-# Database SQL
+# Database SQLite3
+/database/cardinal.db-shm
+/database/cardinal.db-wal
 /database/migrations.sql
 create_db.ps1
