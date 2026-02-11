@@ -2,8 +2,7 @@ const { Collection } = require('discord.js');
 
 class SpamFilter {
   constructor() {
-    // Historique des messages par user
-    // Map<guildId-userId, Array<{content, timestamp}>>
+    // Historique des messages par utilisateur
     this.messageHistory = new Collection();
     
     // Nettoyage périodique
@@ -14,13 +13,17 @@ class SpamFilter {
    * Vérifier si un message est du spam
    */
   async check(message, config) {
-    const {
-      maxMessages = 5,       // Max messages dans la fenêtre
-      timeWindow = 5000,     // Fenêtre en ms (5 sec)
-      maxDuplicates = 3,     // Max messages identiques
-      similarityThreshold = 0.85, // Seuil de similarité
-      action = 'delete'      // Action par défaut
-    } = config;
+    const defaultConfig = {
+      maxMessages: 5,
+      timeWindow: 5000,
+      maxDuplicates: 3,
+      similarityThreshold: 0.85,
+      action: 'delete'
+    };
+    
+    const finalConfig = { ...config, ...defaultConfig };
+    
+    config = finalConfig;
     
     const key = `${message.guild.id}-${message.author.id}`;
     const now = Date.now();
@@ -42,9 +45,6 @@ class SpamFilter {
     const recentMessages = history.filter(
       msg => now - msg.timestamp < timeWindow
     );
-    
-    // Mettre à jour l'historique
-    this.messageHistory.set(key, recentMessages);
     
     // CHECK 1: Flood (trop de messages)
     if (recentMessages.length > maxMessages) {

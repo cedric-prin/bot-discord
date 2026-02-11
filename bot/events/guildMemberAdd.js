@@ -1,5 +1,5 @@
 const { Collection } = require('discord.js');
-const guildRepo = require('../repositories/guildRepo');
+const guildRepo = require('../../database/js/repositories/guildRepo');
 const modLogger = require('../services/modLogger');
 const embed = require('../services/embedBuilder');
 const logger = require('../utils/logger');
@@ -10,8 +10,11 @@ const recentJoins = new Collection();
 // Guilds en lockdown
 const lockdownGuilds = new Collection();
 
+// Export pour accès externe (commande /antiraid)
 module.exports = {
   name: 'guildMemberAdd',
+  lockdownGuilds,
+  recentJoins,
   
   async execute(member) {
     const { guild, user } = member;
@@ -173,7 +176,3 @@ async function triggerAntiRaid(guild, action, threshold, settings) {
       break;
   }
 }
-
-// Export pour accès externe (commande /antiraid)
-module.exports.lockdownGuilds = lockdownGuilds;
-module.exports.recentJoins = recentJoins;

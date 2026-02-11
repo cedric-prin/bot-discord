@@ -25,7 +25,7 @@ const config = {
     bot: {
         token: getEnvVar('DISCORD_TOKEN', true),
         clientId: getEnvVar('DISCORD_CLIENT_ID', true),
-        guildId: getEnvVar('DISCORD_GUILD_ID', false),
+        guildId: getEnvVar('DISCORD_GUILD_ID', false, '1471062604918296642'),
         // Intents requis pour la modération complète
         intents: [
             'Guilds',

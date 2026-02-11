@@ -50,7 +50,25 @@ const guildRepo = {
 
   // Alias pratique pour récupérer les "settings" de la guild
   async getSettings(guildId) {
-    return this.findById(guildId);
+    const row = await dbGet('SELECT * FROM guilds WHERE id = ?', [guildId]);
+    if (!row) return null;
+    
+    // Parser les settings JSON
+    const settings = {};
+    if (row.automod_config) {
+      try {
+        settings.automod = JSON.parse(row.automod_config);
+      } catch (e) {
+        settings.automod = {};
+      }
+    }
+    
+    // Autres champs
+    if (row.log_channel_id) settings.logChannelId = row.log_channel_id;
+    if (row.mod_log_channel_id) settings.modLogChannelId = row.mod_log_channel_id;
+    if (row.mute_role_id) settings.muteRoleId = row.mute_role_id;
+    
+    return settings;
   },
 
   findOrCreate(guildId, guildName) {
@@ -118,10 +136,8 @@ const guildRepo = {
     return this.findById(guildId);
   },
 
-  updateAutomodConfig(guildId, config) {
-    return this.update(guildId, {
-      automod_config: JSON.stringify(config ?? {}),
-    });
+  updateSettings: async function(guildId, settings) {
+    return this.update(guildId, settings);
   },
 
   setLogChannel(guildId, channelId) {

@@ -88,6 +88,9 @@ module.exports = {
         expiresAt: null
       });
       
+      // Log de la sanction pour débogage
+      logger.info(`[KICK] Sanction créée: ID=${sanction.id}, User=${target.tag}, Mod=${moderator.tag}`);
+      
       // Réponse succès
       const successEmbed = embed.success(
         'Membre expulsé',

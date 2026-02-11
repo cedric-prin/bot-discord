@@ -110,7 +110,7 @@ module.exports = {
 
       // S'assurer que les entrées existent en BDD
       await guildRepo.findOrCreate(guild.id, guild.name);
-      await userRepo.findOrCreate(target.id, guild.id, target.tag);
+      await userRepo.findOrCreate(target.id, target.tag);
       await userRepo.findOrCreate(moderatorUser.id, guild.id, moderatorUser.tag);
 
       // Enregistrer la sanction (duration en secondes pour la BDD)
@@ -120,10 +120,13 @@ module.exports = {
         userId: target.id,
         moderatorId: moderatorUser.id,
         type: 'mute',
-        reason,
+        reason: reason,
         duration: durationSeconds,
         expiresAt,
       });
+
+      // Log de la sanction pour débogage
+      logger.info(`[MUTE] Sanction créée: ID=${sanction.id}, User=${target.tag}, Mod=${moderatorUser.tag}, Duration=${durationFormatted}`);
 
       // Réponse succès
       const successEmbed = embed

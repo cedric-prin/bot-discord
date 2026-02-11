@@ -97,7 +97,7 @@ module.exports = {
             value: permsText
           }
         ],
-        footer: `Demandé par ${interaction.user.tag}` 
+        footer: { text: `Demandé par ${interaction.user.tag}` } 
       });
       
       // Ajouter icône du rôle si disponible

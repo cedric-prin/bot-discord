@@ -123,6 +123,9 @@ module.exports = {
         expiresAt: expiresAt
       });
       
+      // Log de la sanction pour débogage
+      logger.info(`[BAN] Sanction créée: ID=${sanction.id}, User=${target.tag}, Mod=${moderator.tag}, Duration=${durationFormatted}`);
+      
       // Réponse succès
       const successEmbed = embed.success(
         'Membre banni',

@@ -74,6 +74,11 @@ class EmbedService {
       .setTimestamp();
   }
   
+  // Méthode create pour compatibilité
+  create(options) {
+    return new EmbedBuilder(options);
+  }
+  
   // Couleur selon score de risque
   _getRiskColor(score) {
     if (score >= 70) return COLORS.ERROR;

@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const embed = require('../../services/embedBuilder');
-const guildRepo = require('../../repositories/guildRepo');
+const guildRepo = require('../../../database/js/repositories/guildRepo');
 const automodManager = require('../../services/automod/automodManager');
 const logger = require('../../utils/logger');
 
@@ -352,7 +352,7 @@ async function handleConfig(interaction, automod, guild) {
   automod[filter][setting] = parsedValue;
   
   // Sauvegarder
-  const guildRepo = require('../../repositories/guildRepo');
+  const guildRepo = require('../../../database/js/repositories/guildRepo');
   await guildRepo.updateSettings(guild.id, { automod });
   
   // Vider le cache
@@ -371,7 +371,7 @@ async function handleConfig(interaction, automod, guild) {
  * Gérer les exemptions
  */
 async function handleExempt(interaction, subcommand, automod, guild) {
-  const guildRepo = require('../../repositories/guildRepo');
+  const guildRepo = require('../../../database/js/repositories/guildRepo');
   const automodManager = require('../../services/automod/automodManager');
   
   // Initialiser les arrays si nécessaire
@@ -446,7 +446,7 @@ async function handleExempt(interaction, subcommand, automod, guild) {
  * Gérer les mots interdits
  */
 async function handleBadwords(interaction, subcommand, automod, guild) {
-  const guildRepo = require('../../repositories/guildRepo');
+  const guildRepo = require('../../../database/js/repositories/guildRepo');
   const automodManager = require('../../services/automod/automodManager');
   
   // Initialiser si nécessaire

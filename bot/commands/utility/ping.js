@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const embed = require('../../services/embedBuilder');
-const db = require('../../database');
+const db = require('../../../database/js');
 const logger = require('../../utils/logger');
 
 module.exports = {
@@ -27,7 +27,7 @@ module.exports = {
 
             // Latence BDD
             const dbStart = Date.now();
-            await db.execute('SELECT 1');
+            await db.get('SELECT 1', []);
             const dbLatency = Date.now() - dbStart;
 
             // Couleur selon la latence
@@ -67,7 +67,7 @@ module.exports = {
                         inline: true
                     }
                 ],
-                footer: `Uptime: ${formatUptime(interaction.client.uptime)}`
+                footer: { text: `Uptime: ${formatUptime(interaction.client.uptime)}` }
             });
 
             return interaction.editReply({ embeds: [pingEmbed] });
