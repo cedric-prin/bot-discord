@@ -15,22 +15,16 @@ module.exports = {
     // Sous-commande: enable
     .addSubcommand(sub =>
       sub.setName('enable')
-        .setDescription('Activer l\'AutoMod')
+        .setDescription('Activer AutoMod')
     )
-
-    // Sous-commande: disable
     .addSubcommand(sub =>
       sub.setName('disable')
-        .setDescription('Désactiver l\'AutoMod')
+        .setDescription('Désactiver AutoMod')
     )
-
-    // Sous-commande: status
     .addSubcommand(sub =>
       sub.setName('status')
-        .setDescription('Voir le statut de l\'AutoMod')
+        .setDescription('Voir le statut AutoMod')
     )
-
-    // Sous-commande: badwords
     .addSubcommandGroup(group =>
       group.setName('badwords')
         .setDescription('Gérer les mots interdits')
@@ -56,6 +50,37 @@ module.exports = {
           sub.setName('list')
             .setDescription('Voir les mots interdits')
         )
+    )
+    .addSubcommand(sub =>
+      sub.setName('config')
+        .setDescription('Configurer les filtres AutoMod')
+        .addStringOption(opt =>
+          opt.setName('filter')
+            .setDescription('Type de filtre à configurer')
+            .setRequired(true)
+            .addChoices(
+              { name: '🚫 Mots interdits', value: 'badwords' },
+              { name: '📢 Spam', value: 'spam' },
+              { name: '🔗 Invitations', value: 'invites' },
+              { name: '🔗 Liens', value: 'links' },
+              { name: '🔤 Majuscules', value: 'caps' },
+              { name: '👤 Mentions', value: 'mentions' },
+              { name: '🛡️ Anti-raid', value: 'antiraid' }
+            )
+        )
+        .addStringOption(opt =>
+          opt.setName('action')
+            .setDescription('Action à effectuer')
+            .setRequired(true)
+            .addChoices(
+              { name: '❌ Supprimer', value: 'delete' },
+              { name: '⚠️ Avertir', value: 'warn' },
+              { name: '🔇 Muter 1h', value: 'mute' },
+              { name: '👢 Expulser', value: 'kick' },
+              { name: '🔨 Bannir', value: 'ban' },
+              { name: '🔒 Verrouiller', value: 'lockdown' }
+            )
+        )
     ),
 
   cooldown: 5,
@@ -65,6 +90,8 @@ module.exports = {
     const { guild } = interaction;
     const subcommand = interaction.options.getSubcommand();
     const subcommandGroup = interaction.options.getSubcommandGroup();
+
+    logger.info(`Commande automod2 exécutée: subcommand=${subcommand}, subcommandGroup=${subcommandGroup}`);
 
     try {
       // Récupérer config AutoMod depuis la nouvelle table
@@ -78,7 +105,16 @@ module.exports = {
       // Sous-commandes simples
       switch (subcommand) {
         case 'enable':
-          await automodRepo.toggleAutomod(guild.id, true);
+          await automodRepo.updateGuildAutomod(guild.id, {
+            enabled: true,
+            badwords_enabled: true,
+            spam_enabled: true,
+            invites_enabled: true,
+            links_enabled: false,
+            caps_enabled: true,
+            mentions_enabled: true,
+            antiraid_enabled: true
+          });
           automodManager.clearCache(guild.id);
 
           return interaction.reply({
@@ -86,7 +122,16 @@ module.exports = {
           });
 
         case 'disable':
-          await automodRepo.toggleAutomod(guild.id, false);
+          await automodRepo.updateGuildAutomod(guild.id, {
+            enabled: false,
+            badwords_enabled: false,
+            spam_enabled: false,
+            invites_enabled: false,
+            links_enabled: false,
+            caps_enabled: false,
+            mentions_enabled: false,
+            antiraid_enabled: false
+          });
           automodManager.clearCache(guild.id);
 
           return interaction.reply({
@@ -96,7 +141,12 @@ module.exports = {
         case 'status':
           return showStatus(interaction, automod, guild);
 
+        case 'config':
+          logger.info('Appel de handleConfig');
+          return handleConfig(interaction, automod, guild);
+
         default:
+          logger.error(`Sous-commande non reconnue: ${subcommand}`);
           return interaction.reply({
             embeds: [embed.error('Erreur', 'Sous-commande non reconnue.')],
             flags: [64]
@@ -114,25 +164,39 @@ module.exports = {
 };
 
 async function showStatus(interaction, automod, guild) {
-  // Utiliser la colonne badwords_count de la table automod avec fallback
-  const badwordsCount = automod.badwords_count !== undefined ? automod.badwords_count : 0;
+  try {
+    // Récupérer le vrai nombre de mots bannis depuis la base de données
+    const badwordsCount = await badwordsRepo.getBadwordsCount(guild.id);
 
-  // Calculer les filtres actifs
-  const activeFilters = Object.keys(automod)
-    .filter(key => key !== 'enabled' && key !== 'exemptRoles' && key !== 'exemptChannels' && key !== 'badwords_count' && automod[key]?.enabled)
-    .length;
+    // Calculer les filtres actifs correctement
+    const activeFilters = [
+      { key: 'badwords_enabled', name: 'Mots interdits', value: automod.badwords_enabled },
+      { key: 'spam_enabled', name: 'Anti-spam', value: automod.spam_enabled },
+      { key: 'invites_enabled', name: 'Invitations', value: automod.invites_enabled },
+      { key: 'links_enabled', name: 'Liens', value: automod.links_enabled },
+      { key: 'caps_enabled', name: 'Majuscules', value: automod.caps_enabled },
+      { key: 'mentions_enabled', name: 'Mentions', value: automod.mentions_enabled },
+      { key: 'antiraid_enabled', name: 'Anti-raid', value: automod.antiraid_enabled }
+    ].filter(filter => filter.value === true || filter.value === 1).length;
 
-  const statusEmbed = embed.info('📊 Statut AutoMod', null)
-    .addFields(
-      { name: '🟢 Actif', value: automod.enabled ? 'Oui' : 'Non', inline: true },
-      { name: '🛡️ Filtres actifs', value: activeFilters.toString(), inline: true },
-      { name: '🚫 Mots bannis', value: badwordsCount.toString(), inline: true }
-    );
+    const statusEmbed = embed.info('📊 Statut AutoMod', null)
+      .addFields(
+        { name: '🟢 Actif', value: automod.enabled ? 'Oui' : 'Non', inline: true },
+        { name: '🛡️ Filtres actifs', value: activeFilters.toString(), inline: true },
+        { name: '🚫 Mots bannis', value: badwordsCount.toString(), inline: true }
+      );
 
-  return interaction.reply({
-    embeds: [statusEmbed],
-    flags: [64] // Ephemeral pour éviter les spam
-  });
+    return interaction.reply({
+      embeds: [statusEmbed],
+      flags: [64] // Ephemeral pour éviter les spam
+    });
+  } catch (error) {
+    logger.error('Erreur showStatus:', error);
+    return interaction.reply({
+      embeds: [embed.error('Erreur', 'Impossible de récupérer le statut AutoMod.')],
+      flags: [64]
+    });
+  }
 }
 
 async function handleBadwords(interaction, subcommand, automod, guild) {
@@ -240,5 +304,80 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
           flags: [64]
         });
       }
+  }
+}
+
+async function handleConfig(interaction, automod, guild) {
+  const filter = interaction.options.getString('filter');
+  const action = interaction.options.getString('action');
+
+  logger.info(`handleConfig appelé: filter=${filter}, action=${action}`);
+
+  try {
+    // Vérifier si le filtre existe
+    const filterConfig = automod[`${filter}_enabled`] !== undefined;
+    if (!filterConfig) {
+      logger.error(`Filtre invalide: ${filter}`);
+      return interaction.reply({
+        embeds: [embed.error('Filtre invalide', `Le filtre \`${filter}\` n'existe pas.`)],
+        flags: [64]
+      });
+    }
+
+    // Activer le filtre si nécessaire
+    if (!automod[`${filter}_enabled`]) {
+      automod[`${filter}_enabled`] = true;
+    }
+
+    // Mettre à jour l'action
+    automod[`${filter}_action`] = action;
+
+    // Activer AutoMod globalement s'il est désactivé
+    if (!automod.enabled) {
+      automod.enabled = true;
+    }
+
+    logger.info(`Mise à jour de la configuration: ${filter}_action = ${action}`);
+
+    // Sauvegarder la configuration
+    await automodRepo.updateGuildAutomod(guild.id, automod);
+    automodManager.clearCache(guild.id);
+
+    // Afficher les détails de la configuration
+    const actionNames = {
+      'delete': '❌ Supprimer',
+      'warn': '⚠️ Avertir',
+      'mute': '🔇 Muter 1h',
+      'kick': '👢 Expulser',
+      'ban': '🔨 Bannir',
+      'lockdown': '🔒 Verrouiller'
+    };
+
+    const filterNames = {
+      'badwords': '🚫 Mots interdits',
+      'spam': '📢 Spam',
+      'invites': '🔗 Invitations',
+      'links': '🔗 Liens',
+      'caps': '🔤 Majuscules',
+      'mentions': '👤 Mentions',
+      'antiraid': '🛡️ Anti-raid'
+    };
+
+    logger.info(`Configuration mise à jour avec succès`);
+
+    return interaction.reply({
+      embeds: [embed.success(
+        'Configuration mise à jour',
+        `**${filterNames[filter]}**\nAction: ${actionNames[action]}\n\n⚠️ Les sanctions progressives (3 avertissements = mute 1h, 5 mutes = kick, 10 violations = ban) s\'appliqueront automatiquement.`
+      )],
+      flags: [64]
+    });
+
+  } catch (error) {
+    logger.error('Erreur configuration AutoMod:', error);
+    return interaction.reply({
+      embeds: [embed.error('Erreur', 'Impossible de mettre à jour la configuration.')],
+      flags: [64]
+    });
   }
 }

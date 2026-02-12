@@ -1,24 +1,7 @@
 // Repository pour la configuration AutoMod
 
-const db = require('../index');
-
-function dbGet(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
-}
-
-function dbRun(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function runCb(err) {
-      if (err) return reject(err);
-      resolve({ changes: this.changes, lastID: this.lastID });
-    });
-  });
-}
+const { dbGet, dbRun, dbAll } = require('../index');
+const logger = require('../../../bot/utils/logger');
 
 const automodRepo = {
   /**
@@ -29,7 +12,7 @@ const automodRepo = {
 
     if (!row) {
       // Retourner la configuration par défaut
-      return {
+      const defaultConfig = {
         guild_id: guildId,
         enabled: false,
         exempt_roles: [],
@@ -42,7 +25,7 @@ const automodRepo = {
         invites_enabled: true,
         invites_allow_own_server: true,
         invites_action: 'delete',
-        badwords_enabled: false,
+        badwords_enabled: true,
         badwords_detect_leet: true,
         badwords_whole_word_only: false,
         badwords_action: 'delete',
@@ -65,14 +48,25 @@ const automodRepo = {
         antiraid_account_age: 7,
         antiraid_action: 'lockdown'
       };
+
+      logger.info(`getGuildAutomod: Configuration par défaut retournée pour ${guildId}`);
+      return defaultConfig;
     }
 
     // Parser les champs JSON
-    return {
+    const config = {
       ...row,
       exempt_roles: JSON.parse(row.exempt_roles || '[]'),
       exempt_channels: JSON.parse(row.exempt_channels || '[]')
     };
+
+    logger.info(`getGuildAutomod: Configuration retournée pour ${guildId}:`, {
+      enabled: config.enabled,
+      badwords_enabled: config.badwords_enabled,
+      spam_enabled: config.spam_enabled
+    });
+
+    return config;
   },
 
   /**
@@ -83,7 +77,7 @@ const automodRepo = {
       'enabled', 'exempt_roles', 'exempt_channels',
       'spam_enabled', 'spam_max_messages', 'spam_time_window', 'spam_max_duplicates', 'spam_action',
       'invites_enabled', 'invites_allow_own_server', 'invites_action',
-      'badwords_enabled', 'badwords_detect_leet', 'badwords_whole_word_only', 'badwords_action',
+      'badwords_enabled', 'badwords_detect_leet', 'badwords_whole_word_only', 'badwords_action', 'badwords_count',
       'links_enabled', 'links_block_all', 'links_action',
       'caps_enabled', 'caps_max_percentage', 'caps_min_length', 'caps_action',
       'mentions_enabled', 'mentions_max_user_mentions', 'mentions_max_role_mentions', 'mentions_block_everyone', 'mentions_action',
@@ -95,13 +89,18 @@ const automodRepo = {
 
     fields.forEach(field => {
       if (config[field] !== undefined) {
-        updates.push(`${field} = ?`);
+        updates.push(field); // Pas de = ? pour INSERT OR REPLACE
 
         // Convertir les arrays en JSON
         if (field === 'exempt_roles' || field === 'exempt_channels') {
           values.push(JSON.stringify(config[field]));
         } else {
-          values.push(config[field]);
+          // Convertir les booléens en entiers pour SQLite
+          if (typeof config[field] === 'boolean') {
+            values.push(config[field] ? 1 : 0);
+          } else {
+            values.push(config[field]);
+          }
         }
       }
     });
@@ -116,6 +115,10 @@ const automodRepo = {
         ?, ${updates.map(() => '?').join(', ')}, CURRENT_TIMESTAMP
       )
     `;
+
+    logger.info(`Mise à jour automod: updates=${updates.length}, values=${values}`);
+    logger.info(`SQL généré: ${sql}`);
+    logger.info(`Paramètres: [${guildId}, ...values]`);
 
     await dbRun(sql, [guildId, ...values]);
   },

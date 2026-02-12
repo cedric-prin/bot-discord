@@ -49,37 +49,23 @@ class ModLogger {
   /**
    * Log une action AutoMod
    */
-  async logAutoMod(guild, { trigger, user, channel, action, matchedContent, rule }) {
+  async logAutoMod(guild, data) {
     try {
-      // Enregistrer en base de données
-      await automodLogsRepo.addLog({
-        guildId: guild.id,
-        userId: user.id,
-        triggerType: trigger,
-        messageContent: matchedContent || '',
-        actionTaken: action
-      });
+      const logData = {
+        guild_id: guild.id,
+        user_id: data.user?.id,
+        moderator_id: data.moderator?.id,
+        channel_id: data.channel?.id,
+        message_id: data.message?.id,
+        trigger_type: data.trigger,
+        trigger_content: data.matchedContent,
+        action_taken: data.action,
+        severity: data.severity || 1,
+        confidence_score: data.confidence,
+        details: data.rule
+      };
 
-      const automodEmbed = embed
-        .warning('🤖 AutoMod', 'Action automatique déclenchée')
-        .addFields(
-          { name: '👤 Utilisateur', value: `${user.tag} (${user.id})`, inline: true },
-          { name: '📝 Trigger', value: trigger, inline: true },
-          { name: '⚡ Action', value: action, inline: true },
-          { name: '📍 Channel', value: `<#${channel.id}>`, inline: true },
-          { name: '🔍 Règle', value: rule, inline: true }
-        );
-
-      if (matchedContent) {
-        const truncated =
-          matchedContent.length > 200 ? `${matchedContent.substring(0, 200)}...` : matchedContent;
-        automodEmbed.addFields({
-          name: '💬 Contenu détecté',
-          value: `\`\`\`${truncated}\`\`\``,
-        });
-      }
-
-      await this.send(guild, automodEmbed, 'automod');
+      await automodLogsRepo.addLog(logData);
     } catch (error) {
       logger.error(`Erreur logAutoMod pour ${guild?.name || guild?.id}:`, error);
     }

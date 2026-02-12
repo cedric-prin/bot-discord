@@ -33,7 +33,7 @@ class BadwordsFilter {
     }
 
     try {
-      const badwordsRepo = require('../../../../../database/js/repositories/badwordsRepo');
+      const badwordsRepo = require('../../../../database/js/repositories/badwordsRepo');
       const words = await badwordsRepo.getGuildBadwords(guildId);
 
       this.wordsCache.set(guildId, {

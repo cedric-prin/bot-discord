@@ -19,12 +19,12 @@ class AutoModManager {
 
     // Filtres dans l'ordre de priorité
     this.filters = [
-      { name: 'spam', handler: spamFilter, priority: 1 },
+      { name: 'badwords', handler: badwordsFilter, priority: 1 },
       { name: 'invites', handler: inviteFilter, priority: 2 },
-      { name: 'badwords', handler: badwordsFilter, priority: 3 },
-      { name: 'links', handler: linksFilter, priority: 4 },
-      { name: 'caps', handler: capsFilter, priority: 5 },
-      { name: 'mentions', handler: mentionsFilter, priority: 6 }
+      { name: 'links', handler: linksFilter, priority: 3 },
+      { name: 'caps', handler: capsFilter, priority: 4 },
+      { name: 'mentions', handler: mentionsFilter, priority: 5 }
+      // { name: 'spam', handler: spamFilter, priority: 6 } - Temporairement désactivé
     ];
 
     // Statistiques
@@ -41,24 +41,50 @@ class AutoModManager {
     // Ignorer les DMs
     if (!message.guild) return null;
 
+    logger.debug(`[AutoModManager] Traitement du message: ${message.content}`);
+
     try {
       // Récupérer la config
       const config = await this.getConfig(message.guild.id);
 
+      logger.debug(`[AutoModManager] Config récupérée: enabled=${config?.enabled}, badwords_enabled=${config?.badwords_enabled}`);
+
       // AutoMod désactivé ?
-      if (!config || !config.enabled) return null;
+      if (!config || !config.enabled) {
+        logger.debug(`[AutoModManager] AutoMod désactivé`);
+        return null;
+      }
 
       // Vérifier les exemptions
-      if (await this.isExempt(message, config)) return null;
+      if (await this.isExempt(message, config)) {
+        logger.debug(`[AutoModManager] Message exempté`);
+        return null;
+      }
 
       // Exécuter les filtres
       for (const filter of this.filters) {
-        // Filtre activé ?
-        if (!config[filter.name]?.enabled) continue;
+        // Filtre activé ? (mapper le nom du filtre vers le champ de config)
+        const configField = `${filter.name}_enabled`;
+        if (!config[configField]) {
+          logger.debug(`[AutoModManager] Filtre ${filter.name} désactivé (${configField}=${config[configField]})`);
+          continue;
+        }
 
-        const result = await filter.handler.check(message, config[filter.name]);
+        logger.debug(`[AutoModManager] Test du filtre ${filter.name}`);
+
+        // Préparer la configuration spécifique pour le filtre
+        const filterConfig = {
+          useDefault: true,
+          detectLeet: config[`${filter.name}_detect_leet`] !== false,
+          wholeWordOnly: config[`${filter.name}_whole_word_only`] === true,
+          action: config[`${filter.name}_action`] || 'delete',
+          customRegex: []
+        };
+
+        const result = await filter.handler.check(message, filterConfig);
 
         if (result.triggered) {
+          logger.info(`[AutoModManager] Filtre ${filter.name} déclenché: ${result.reason} (action: ${result.action})`);
           // Exécuter l'action
           await this.executeAction(message, result, filter.name, config);
 
@@ -72,6 +98,7 @@ class AutoModManager {
         }
       }
 
+      logger.debug(`[AutoModManager] Aucun filtre déclenché`);
       return null;
 
     } catch (error) {
@@ -81,22 +108,18 @@ class AutoModManager {
   }
 
   /**
-   * Récupérer config avec cache
+   * Récupérer la configuration AutoMod d'un serveur
    */
   async getConfig(guildId) {
-    const cached = this.configCache.get(guildId);
+    // Forcer le rechargement depuis la base de données
+    this.configCache.delete(guildId);
 
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return cached.config;
-    }
+    const automodRepo = require('../../../database/js/repositories/automodRepo');
+    const config = await automodRepo.getGuildAutomod(guildId);
 
-    const settings = await guildRepo.getSettings(guildId);
-
-    if (!settings?.automod) {
+    if (!config) {
       return null;
     }
-
-    const config = settings.automod;
 
     this.configCache.set(guildId, {
       config,
@@ -112,8 +135,8 @@ class AutoModManager {
   async isExempt(message, config) {
     const { member, channel } = message;
 
-    // Admins toujours exemptés
-    if (member.permissions.has('Administrator')) return true;
+    // Admins toujours exemptés (temporairement désactivé pour test)
+    // if (member.permissions.has('Administrator')) return true;
 
     // Rôles exemptés
     if (config.exemptRoles?.length > 0) {
@@ -140,7 +163,7 @@ class AutoModManager {
 
     try {
       // Supprimer le message
-      if (['delete', 'warn', 'mute'].includes(action)) {
+      if (['delete', 'warn', 'mute', 'kick', 'ban'].includes(action)) {
         await message.delete().catch(() => { });
       }
 
@@ -180,15 +203,19 @@ class AutoModManager {
           break;
       }
 
-      // Log AutoMod
-      await modLogger.logAutoMod(guild, {
-        trigger: filterName,
-        user: author,
-        channel: channel,
-        action: action,
-        matchedContent: matchedContent,
-        rule: reason
-      });
+      // Log AutoMod (sans erreur si le logging échoue)
+      try {
+        await modLogger.logAutoMod(guild, {
+          trigger: filterName,
+          user: author,
+          channel: channel,
+          action: action,
+          matchedContent: matchedContent,
+          rule: reason
+        });
+      } catch (logError) {
+        logger.error('Erreur logAutoMod:', logError);
+      }
 
     } catch (error) {
       logger.error(`AutoMod action error:`, error);
@@ -216,11 +243,11 @@ class AutoModManager {
   }
 
   /**
-   * Réinitialiser le cache pour un guild
+   * Vider le cache pour un serveur
    */
   clearCache(guildId) {
     this.configCache.delete(guildId);
-
+    logger.info(`[AutoModManager] Cache vidé pour ${guildId}`);
     // Vider aussi le cache des badwords
     const badwordsFilter = this.filters.find(f => f.name === 'badwords')?.handler;
     if (badwordsFilter && badwordsFilter.clearCache) {

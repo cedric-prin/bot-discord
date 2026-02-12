@@ -1,34 +1,7 @@
 // Repo Guild - opérations CRUD
 
-const db = require('../index');
+const { dbGet, dbRun, dbAll } = require('../index');
 const Guild = require('../models/Guild');
-
-function dbGet(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
-}
-
-function dbAll(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows || []);
-    });
-  });
-}
-
-function dbRun(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function runCb(err) {
-      if (err) return reject(err);
-      resolve({ changes: this.changes, lastID: this.lastID });
-    });
-  });
-}
 
 const ALLOWED_UPDATE_FIELDS = new Set([
   'name',
@@ -53,7 +26,7 @@ const guildRepo = {
   async getSettings(guildId) {
     const row = await dbGet('SELECT * FROM guilds WHERE id = ?', [guildId]);
     if (!row) return null;
-    
+
     // Parser les settings JSON
     const settings = {};
     if (row.automod_config) {
@@ -63,7 +36,7 @@ const guildRepo = {
         settings.automod = {};
       }
     }
-    
+
     if (row.warn_thresholds) {
       try {
         settings.warnThresholds = JSON.parse(row.warn_thresholds);
@@ -71,12 +44,12 @@ const guildRepo = {
         settings.warnThresholds = {};
       }
     }
-    
+
     // Autres champs
     if (row.log_channel_id) settings.logChannelId = row.log_channel_id;
     if (row.mod_log_channel_id) settings.modLogChannelId = row.mod_log_channel_id;
     if (row.mute_role_id) settings.muteRoleId = row.mute_role_id;
-    
+
     return settings;
   },
 
@@ -145,7 +118,7 @@ const guildRepo = {
     return this.findById(guildId);
   },
 
-  updateSettings: async function(guildId, settings) {
+  updateSettings: async function (guildId, settings) {
     return this.update(guildId, settings);
   },
 

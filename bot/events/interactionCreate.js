@@ -9,7 +9,7 @@ const config = require('../../config/config');
 module.exports = {
     name: 'interactionCreate',
     once: false,
-    
+
     /**
      * Exécute le traitement de l'interaction
      * @param {Interaction} interaction - Interaction Discord
@@ -21,9 +21,15 @@ module.exports = {
             return;
         }
 
-        const command = client.commands.get(interaction.commandName);
+        // Correction du bug de cache Discord
+        let commandName = interaction.commandName;
+        if (commandName === 'automod2' && client.commands.has('automod')) {
+            commandName = 'automod';
+        }
+
+        const command = client.commands.get(commandName);
         if (!command) {
-            logger.warn(`⚠️ Commande non trouvée: ${interaction.commandName}`);
+            logger.warn(`⚠️ Commande non trouvée: ${commandName}`);
             return;
         }
 
@@ -45,7 +51,7 @@ module.exports = {
 
             // 3. Exécution de la commande
             await command.execute(interaction);
-            
+
             // Log de succès
             logger.debug(`✅ Commande ${interaction.commandName} exécutée avec succès`);
 
@@ -94,14 +100,14 @@ module.exports = {
      */
     async checkCooldown(interaction, command) {
         const cooldownTime = command.cooldown || config.moderation.defaultCooldown;
-        
+
         if (cooldownTime <= 0) {
             return { allowed: true };
         }
 
         // Utiliser la collection globale de cooldowns du client
         const { cooldowns } = interaction.client;
-        
+
         if (!cooldowns.has(command.data.name)) {
             cooldowns.set(command.data.name, new Map());
         }
@@ -113,7 +119,7 @@ module.exports = {
 
         if (timestamps.has(userId)) {
             const expiration = timestamps.get(userId) + cooldownAmount;
-            
+
             if (now < expiration) {
                 const remaining = ((expiration - now) / 1000).toFixed(1);
                 return {
@@ -172,7 +178,7 @@ module.exports = {
      */
     async handleCommandError(interaction, error, command) {
         const errorId = Date.now().toString(36);
-        
+
         logger.error(`❌ Erreur dans la commande ${command.data.name}:`, {
             errorId: errorId,
             command: command.data.name,

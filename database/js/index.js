@@ -23,10 +23,10 @@ const db = new sqlite3.Database(config.database.path, (err) => {
         process.exit(1);
     } else {
         logger.info(`Connecté à la base SQLite: ${config.database.path}`);
-        
+
         // Activer les contraintes de clés étrangères
         db.run('PRAGMA foreign_keys = ON');
-        
+
         // Optimiser les performances
         db.run('PRAGMA journal_mode = WAL');
         db.run('PRAGMA synchronous = NORMAL');
@@ -51,4 +51,37 @@ process.on('SIGINT', () => {
     });
 });
 
-module.exports = db;
+// Fonctions utilitaires pour les requêtes SQL
+function dbGet(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+        });
+    });
+}
+
+function dbRun(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function runCb(err) {
+            if (err) return reject(err);
+            resolve({ changes: this.changes, lastID: this.lastID });
+        });
+    });
+}
+
+function dbAll(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows);
+        });
+    });
+}
+
+module.exports = {
+    db,
+    dbGet,
+    dbRun,
+    dbAll
+};
