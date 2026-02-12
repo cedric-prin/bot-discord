@@ -23,8 +23,8 @@ class AutoModManager {
       { name: 'invites', handler: inviteFilter, priority: 2 },
       { name: 'links', handler: linksFilter, priority: 3 },
       { name: 'caps', handler: capsFilter, priority: 4 },
-      { name: 'mentions', handler: mentionsFilter, priority: 5 }
-      // { name: 'spam', handler: spamFilter, priority: 6 } - Temporairement désactivé
+      { name: 'mentions', handler: mentionsFilter, priority: 5 },
+      { name: 'spam', handler: spamFilter, priority: 6 }
     ];
 
     // Statistiques
@@ -205,8 +205,21 @@ class AutoModManager {
 
       // Log AutoMod (sans erreur si le logging échoue)
       try {
+        // Mapper les noms de filtres vers les valeurs attendues par la contrainte SQL
+        const triggerTypeMap = {
+          'badwords': 'bad_words',
+          'spam': 'spam',
+          'invites': 'invites',
+          'links': 'links',
+          'caps': 'caps',
+          'mentions': 'mass_mentions',
+          'antiraid': 'blacklist'
+        };
+
+        const mappedTrigger = triggerTypeMap[filterName] || filterName;
+
         await modLogger.logAutoMod(guild, {
-          trigger: filterName,
+          trigger: mappedTrigger,
           user: author,
           channel: channel,
           action: action,
