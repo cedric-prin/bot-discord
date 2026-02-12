@@ -5,7 +5,7 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const embed = require('../../services/embedBuilder');
-const automodLogRepo = require('../../../database/js/repositories/automodLogRepo');
+const automodLogsRepo = require('../../../database/js/repositories/automodLogsRepo');
 const guildRepo = require('../../../database/js/repositories/guildRepo');
 const logger = require('../../utils/logger');
 
@@ -47,8 +47,8 @@ module.exports = {
 
     try {
       // Récupérer les stats depuis la BDD
-      const stats = await automodLogRepo.getStats(guild.id, period);
-      const totalLogs = await automodLogRepo.countByGuild(guild.id);
+      const stats = await automodLogsRepo.getStats(guild.id, period);
+      const totalLogs = await automodLogsRepo.countByGuild(guild.id);
 
       if (stats.length === 0) {
         return interaction.reply({
@@ -127,7 +127,7 @@ async function showGeneralStats(interaction, stats, period, totalLogs) {
  * Affiche les top utilisateurs
  */
 async function showTopUsers(interaction, guildId, period) {
-  const topUsers = await automodLogRepo.getTopUsers(guildId, 10, period);
+  const topUsers = await automodLogsRepo.getTopUsers(guildId, 10, period);
 
   if (topUsers.length === 0) {
     return interaction.reply({

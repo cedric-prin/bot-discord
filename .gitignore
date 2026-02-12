@@ -48,9 +48,6 @@ panel/__pycache__/
 # Database Python
 /database/python/__pycache__/
 
-# Database JS
-/database/js/*.log
-
 # Database SQLite3
 /database/cardinal.db-shm
 /database/cardinal.db-wal

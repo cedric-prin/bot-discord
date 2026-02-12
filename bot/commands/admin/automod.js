@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const embed = require('../../services/embedBuilder');
-const guildRepo = require('../../../database/js/repositories/guildRepo');
+const badwordsRepo = require('../../../database/js/repositories/badwordsRepo');
+const automodRepo = require('../../../database/js/repositories/automodRepo');
 const automodManager = require('../../services/automod/automodManager');
 const logger = require('../../utils/logger');
 
@@ -27,72 +28,6 @@ module.exports = {
     .addSubcommand(sub =>
       sub.setName('status')
         .setDescription('Voir le statut de l\'AutoMod')
-    )
-
-    // Sous-commande: config
-    .addSubcommand(sub =>
-      sub.setName('config')
-        .setDescription('Configurer un filtre')
-        .addStringOption(opt =>
-          opt.setName('filter')
-            .setDescription('Le filtre à configurer')
-            .setRequired(true)
-            .addChoices(
-              { name: 'Spam', value: 'spam' },
-              { name: 'Invitations', value: 'invites' },
-              { name: 'Mots interdits', value: 'badwords' },
-              { name: 'Liens', value: 'links' },
-              { name: 'Majuscules', value: 'caps' },
-              { name: 'Mentions', value: 'mentions' },
-              { name: 'Anti-Raid', value: 'antiraid' }
-            )
-        )
-        .addStringOption(opt =>
-          opt.setName('setting')
-            .setDescription('Le paramètre à modifier')
-            .setRequired(true)
-        )
-        .addStringOption(opt =>
-          opt.setName('value')
-            .setDescription('La nouvelle valeur')
-            .setRequired(true)
-        )
-    )
-
-    // Sous-commande: exempt
-    .addSubcommandGroup(group =>
-      group.setName('exempt')
-        .setDescription('Gérer les exemptions')
-        .addSubcommand(sub =>
-          sub.setName('add')
-            .setDescription('Ajouter une exemption')
-            .addRoleOption(opt =>
-              opt.setName('role')
-                .setDescription('Rôle à exempter')
-            )
-            .addChannelOption(opt =>
-              opt.setName('channel')
-                .setDescription('Channel à exempter')
-                .addChannelTypes(ChannelType.GuildText)
-            )
-        )
-        .addSubcommand(sub =>
-          sub.setName('remove')
-            .setDescription('Retirer une exemption')
-            .addRoleOption(opt =>
-              opt.setName('role')
-                .setDescription('Rôle à retirer')
-            )
-            .addChannelOption(opt =>
-              opt.setName('channel')
-                .setDescription('Channel à retirer')
-                .addChannelTypes(ChannelType.GuildText)
-            )
-        )
-        .addSubcommand(sub =>
-          sub.setName('list')
-            .setDescription('Voir les exemptions')
-        )
     )
 
     // Sous-commande: badwords
@@ -132,21 +67,10 @@ module.exports = {
     const subcommandGroup = interaction.options.getSubcommandGroup();
 
     try {
-      // Récupérer config actuelle
-      let settings = await guildRepo.getSettings(guild.id);
-      if (!settings) {
-        settings = { automod: getDefaultConfig() };
-      } else if (!settings.automod) {
-        settings.automod = getDefaultConfig();
-      }
-
-      const automod = settings.automod;
+      // Récupérer config AutoMod depuis la nouvelle table
+      const automod = await automodRepo.getGuildAutomod(guild.id);
 
       // Gérer les groupes de sous-commandes
-      if (subcommandGroup === 'exempt') {
-        return handleExempt(interaction, subcommand, automod, guild);
-      }
-
       if (subcommandGroup === 'badwords') {
         return handleBadwords(interaction, subcommand, automod, guild);
       }
@@ -154,8 +78,7 @@ module.exports = {
       // Sous-commandes simples
       switch (subcommand) {
         case 'enable':
-          automod.enabled = true;
-          await guildRepo.updateSettings(guild.id, { automod });
+          await automodRepo.toggleAutomod(guild.id, true);
           automodManager.clearCache(guild.id);
 
           return interaction.reply({
@@ -163,8 +86,7 @@ module.exports = {
           });
 
         case 'disable':
-          automod.enabled = false;
-          await guildRepo.updateSettings(guild.id, { automod });
+          await automodRepo.toggleAutomod(guild.id, false);
           automodManager.clearCache(guild.id);
 
           return interaction.reply({
@@ -174,8 +96,11 @@ module.exports = {
         case 'status':
           return showStatus(interaction, automod, guild);
 
-        case 'config':
-          return handleConfig(interaction, automod, guild);
+        default:
+          return interaction.reply({
+            embeds: [embed.error('Erreur', 'Sous-commande non reconnue.')],
+            flags: [64]
+          });
       }
 
     } catch (error) {
@@ -188,263 +113,33 @@ module.exports = {
   }
 };
 
-/**
- * Config par défaut
- */
-function getDefaultConfig() {
-  return {
-    enabled: false,
-    exemptRoles: [],
-    exemptChannels: [],
-    spam: {
-      enabled: true,
-      maxMessages: 5,
-      timeWindow: 5000,
-      maxDuplicates: 3,
-      action: 'delete'
-    },
-    invites: {
-      enabled: true,
-      allowOwnServer: true,
-      action: 'delete'
-    },
-    badwords: {
-      enabled: false,
-      words: [],
-      action: 'delete'
-    },
-    links: {
-      enabled: false,
-      blockAll: false,
-      action: 'delete'
-    },
-    caps: {
-      enabled: true,
-      maxPercentage: 70,
-      minLength: 10,
-      action: 'delete'
-    },
-    mentions: {
-      enabled: true,
-      maxUserMentions: 5,
-      maxRoleMentions: 3,
-      action: 'delete'
-    },
-    antiraid: {
-      enabled: true,
-      joinThreshold: 10,
-      joinWindow: 10000,
-      accountAge: 7,
-      action: 'lockdown'
-    }
-  };
-}
-
 async function showStatus(interaction, automod, guild) {
-  const stats = automodManager.getStats(guild.id);
+  // Utiliser la colonne badwords_count de la table automod avec fallback
+  const badwordsCount = automod.badwords_count !== undefined ? automod.badwords_count : 0;
 
-  const statusEmbed = embed.info('📊 Statut AutoMod', '')
+  // Calculer les filtres actifs
+  const activeFilters = Object.keys(automod)
+    .filter(key => key !== 'enabled' && key !== 'exemptRoles' && key !== 'exemptChannels' && key !== 'badwords_count' && automod[key]?.enabled)
+    .length;
+
+  const statusEmbed = embed.info('📊 Statut AutoMod', null)
     .addFields(
       { name: '🟢 Actif', value: automod.enabled ? 'Oui' : 'Non', inline: true },
-      { name: '🛡️ Filtres actifs', value: Object.keys(automod).filter(key => key !== 'enabled' && automod[key]?.enabled).length.toString(), inline: true },
-      { name: '📈 Messages bloqués', value: stats.blocked || '0', inline: true }
+      { name: '🛡️ Filtres actifs', value: activeFilters.toString(), inline: true },
+      { name: '🚫 Mots bannis', value: badwordsCount.toString(), inline: true }
     );
 
-  return interaction.reply({ embeds: [statusEmbed] });
-}
-
-/**
- * Gérer la configuration d'un filtre
- */
-async function handleConfig(interaction, automod, guild) {
-  const filter = interaction.options.getString('filter');
-  const setting = interaction.options.getString('setting');
-  const value = interaction.options.getString('value');
-
-  // Vérifier que le filtre existe
-  if (!automod[filter]) {
-    automod[filter] = {};
-  }
-
-  // Paramètres valides par filtre
-  const validSettings = {
-    spam: ['enabled', 'maxMessages', 'timeWindow', 'maxDuplicates', 'action'],
-    invites: ['enabled', 'allowOwnServer', 'action'],
-    badwords: ['enabled', 'detectLeet', 'wholeWordOnly', 'action'],
-    links: ['enabled', 'blockAll', 'action'],
-    caps: ['enabled', 'maxPercentage', 'minLength', 'action'],
-    mentions: ['enabled', 'maxUserMentions', 'maxRoleMentions', 'blockEveryone', 'action'],
-    antiraid: ['enabled', 'joinThreshold', 'joinWindow', 'accountAge', 'action']
-  };
-
-  if (!validSettings[filter]?.includes(setting)) {
-    const available = validSettings[filter]?.join(', ') || 'aucun';
-    return interaction.reply({
-      embeds: [embed.error(
-        'Paramètre invalide',
-        `Paramètres disponibles pour **${filter}**: \`${available}\``
-      )],
-      flags: [64]
-    });
-  }
-
-  // Convertir la valeur selon le type attendu
-  let parsedValue;
-
-  if (setting === 'enabled' || setting === 'allowOwnServer' ||
-    setting === 'blockAll' || setting === 'detectLeet' ||
-    setting === 'wholeWordOnly' || setting === 'blockEveryone') {
-    // Boolean
-    parsedValue = ['true', 'on', 'yes', '1', 'oui'].includes(value.toLowerCase());
-  } else if (setting === 'action') {
-    // Action valide
-    const validActions = ['delete', 'warn', 'mute', 'log'];
-    if (!validActions.includes(value.toLowerCase())) {
-      return interaction.reply({
-        embeds: [embed.error('Action invalide', `Actions valides: ${validActions.join(', ')}`)],
-        flags: [64]
-      });
-    }
-    parsedValue = value.toLowerCase();
-  } else {
-    // Nombre
-    parsedValue = parseInt(value);
-    if (isNaN(parsedValue) || parsedValue < 0) {
-      return interaction.reply({
-        embeds: [embed.error('Valeur invalide', 'Cette valeur doit être un nombre positif.')],
-        flags: [64]
-      });
-    }
-  }
-
-  // Appliquer le changement
-  automod[filter][setting] = parsedValue;
-
-  // Sauvegarder
-  const guildRepo = require('../../../database/js/repositories/guildRepo');
-  await guildRepo.updateSettings(guild.id, { automod });
-
-  // Vider le cache
-  const automodManager = require('../../services/automod/automodManager');
-  automodManager.clearCache(guild.id);
-
   return interaction.reply({
-    embeds: [embed.success(
-      'Configuration mise à jour',
-      `**${filter}.${setting}** = \`${parsedValue}\``
-    )]
+    embeds: [statusEmbed],
+    flags: [64] // Ephemeral pour éviter les spam
   });
 }
 
-/**
- * Gérer les exemptions
- */
-async function handleExempt(interaction, subcommand, automod, guild) {
-  const guildRepo = require('../../../database/js/repositories/guildRepo');
-  const automodManager = require('../../services/automod/automodManager');
-
-  // Initialiser les arrays si nécessaire
-  if (!automod.exemptRoles) automod.exemptRoles = [];
-  if (!automod.exemptChannels) automod.exemptChannels = [];
-
-  if (subcommand === 'list') {
-    const roles = automod.exemptRoles.map(id => `<@&${id}>`).join('\n') || 'Aucun';
-    const channels = automod.exemptChannels.map(id => `<#${id}>`).join('\n') || 'Aucun';
-
-    const listEmbed = embed.info('🔓 Exemptions AutoMod', '')
-      .addFields(
-        { name: '👥 Rôles exemptés', value: roles, inline: true },
-        { name: '📝 Channels exemptés', value: channels, inline: true }
-      );
-
-    return interaction.reply({ embeds: [listEmbed] });
-  }
-
-  const role = interaction.options.getRole('role');
-  const channel = interaction.options.getChannel('channel');
-
-  if (!role && !channel) {
-    return interaction.reply({
-      embeds: [embed.error('Erreur', 'Spécifiez un rôle ou un channel.')],
-      flags: [64]
-    });
-  }
-
-  if (subcommand === 'add') {
-    if (role && !automod.exemptRoles.includes(role.id)) {
-      automod.exemptRoles.push(role.id);
-    }
-    if (channel && !automod.exemptChannels.includes(channel.id)) {
-      automod.exemptChannels.push(channel.id);
-    }
-
-    await guildRepo.updateSettings(guild.id, { automod });
-    automodManager.clearCache(guild.id);
-
-    const added = [];
-    if (role) added.push(`Rôle: ${role}`);
-    if (channel) added.push(`Channel: ${channel}`);
-
-    return interaction.reply({
-      embeds: [embed.success('Exemption ajoutée', added.join('\n'))]
-    });
-  }
-
-  if (subcommand === 'remove') {
-    if (role) {
-      automod.exemptRoles = automod.exemptRoles.filter(id => id !== role.id);
-    }
-    if (channel) {
-      automod.exemptChannels = automod.exemptChannels.filter(id => id !== channel.id);
-    }
-
-    await guildRepo.updateSettings(guild.id, { automod });
-    automodManager.clearCache(guild.id);
-
-    const removed = [];
-    if (role) removed.push(`Rôle: ${role}`);
-    if (channel) removed.push(`Channel: ${channel}`);
-
-    return interaction.reply({
-      embeds: [embed.success('Exemption retirée', removed.join('\n'))]
-    });
-  }
-}
-
-/**
- * Gérer les mots interdits
- */
 async function handleBadwords(interaction, subcommand, automod, guild) {
-  const guildRepo = require('../../../database/js/repositories/guildRepo');
-  const automodManager = require('../../services/automod/automodManager');
-
-  if (subcommand === 'list') {
-    // Récupérer les mots depuis la base de données
-    const sqlite3 = require('sqlite3').verbose();
-    const dbPath = require('path').join(__dirname, '../../../database/cardinal.db');
-
-    return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath);
-
-      db.get(`SELECT automod_config FROM guilds WHERE id = ?`, [guild.id], (err, row) => {
-        if (err) {
-          console.error('Erreur récupération config:', err);
-          return interaction.reply({
-            embeds: [embed.error('Erreur', 'Impossible de récupérer la configuration.')],
-            flags: [64]
-          });
-        }
-
-        let config = {};
-        if (row && row.automod_config) {
-          try {
-            config = JSON.parse(row.automod_config);
-          } catch (e) {
-            config = {};
-          }
-        }
-
-        const words = config.badwords?.words || [];
+  switch (subcommand) {
+    case 'list':
+      try {
+        const words = await badwordsRepo.getGuildBadwords(guild.id);
 
         if (words.length === 0) {
           return interaction.reply({
@@ -459,179 +154,91 @@ async function handleBadwords(interaction, subcommand, automod, guild) {
           return w[0] + '*'.repeat(w.length - 2) + w[w.length - 1];
         });
 
-        interaction.reply({
+        return interaction.reply({
           embeds: [embed.info(
             '🚫 Mots interdits',
             `${words.length} mot(s) configuré(s)\n\`\`\`${maskedWords.join(', ')}\`\`\``
           )],
           flags: [64]
         });
+      } catch (error) {
+        logger.error('Erreur listing badwords:', error);
+        return interaction.reply({
+          embeds: [embed.error('Erreur', 'Impossible de récupérer la liste des mots interdits.')],
+          flags: [64]
+        });
+      }
 
-        db.close();
-      });
-    });
-  }
+    case 'add':
+      try {
+        const word = interaction.options.getString('word').toLowerCase().trim();
 
-  const word = interaction.options.getString('word').toLowerCase().trim();
-
-  if (subcommand === 'add') {
-    // Récupérer la configuration actuelle
-    const sqlite3 = require('sqlite3').verbose();
-    const dbPath = require('path').join(__dirname, '../../../database/cardinal.db');
-
-    return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath, (err) => {
-        if (err) {
-          console.error('Erreur ouverture base de données:', err);
+        if (!word || word.length < 1) {
           return interaction.reply({
-            embeds: [embed.error('Erreur', 'Impossible d\'ouvrir la base de données.')],
-            flags: [64]
-          });
-        }
-      });
-
-      db.get(`SELECT automod_config FROM guilds WHERE id = ?`, [guild.id], (err, row) => {
-        if (err) {
-          console.error('Erreur récupération config:', err);
-          db.close();
-          return interaction.reply({
-            embeds: [embed.error('Erreur', 'Impossible de récupérer la configuration.')],
+            embeds: [embed.error('Erreur', 'Le mot spécifié est invalide.')],
             flags: [64]
           });
         }
 
-        let config = {};
-        if (row && row.automod_config) {
-          try {
-            config = JSON.parse(row.automod_config);
-          } catch (e) {
-            config = {};
-          }
-        }
+        const result = await badwordsRepo.addBadword(guild.id, word, interaction.user.id);
 
-        // Initialiser la configuration badwords si nécessaire
-        if (!config.badwords) {
-          config.badwords = { enabled: false, words: [] };
-        }
-        if (!config.badwords.words) {
-          config.badwords.words = [];
-        }
-
-        // Vérifier si le mot est déjà présent
-        if (config.badwords.words.includes(word)) {
+        if (result.exists) {
           return interaction.reply({
             embeds: [embed.warning('Déjà présent', 'Ce mot est déjà dans la liste.')],
             flags: [64]
           });
         }
 
-        // Ajouter le mot
-        config.badwords.words.push(word);
-        config.badwords.enabled = true;
+        await automodRepo.updateBadwordsCount(guild.id);
+        automodManager.clearCache(guild.id);
 
-        // Mettre à jour la configuration
-        const updatedConfig = JSON.stringify(config);
-        db.run(`UPDATE guilds SET automod_config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-          [updatedConfig, guild.id], (err) => {
-            if (err) {
-              console.error('Erreur mise à jour config:', err);
-              return interaction.reply({
-                embeds: [embed.error('Erreur', 'Impossible d\'ajouter le mot.')],
-                flags: [64]
-              });
-            }
+        const count = await badwordsRepo.getBadwordsCount(guild.id);
+        return interaction.reply({
+          embeds: [embed.success('Mot ajouté', `Le mot a été ajouté à la liste (${count} total).`)],
+          flags: [64]
+        });
+      }
+      catch (error) {
+        logger.error('Erreur ajout badword:', error);
+        return interaction.reply({
+          embeds: [embed.error('Erreur', 'Impossible d\'ajouter le mot.')],
+          flags: [64]
+        });
+      }
 
-            // Vider le cache
-            automodManager.clearCache(guild.id);
+    case 'remove':
+      try {
+        const word = interaction.options.getString('word').toLowerCase().trim();
 
-            interaction.reply({
-              embeds: [embed.success('Mot ajouté', `Le mot a été ajouté à la liste (${config.badwords.words.length} total).`)],
-              flags: [64]
-            });
+        const removed = await badwordsRepo.removeBadword(guild.id, word);
 
-            db.close();
-          });
-      });
-    });
-  }
-
-  if (subcommand === 'remove') {
-    // Récupérer la configuration actuelle
-    const sqlite3 = require('sqlite3').verbose();
-    const dbPath = require('path').join(__dirname, '../../../database/cardinal.db');
-
-    return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(dbPath, (err) => {
-        if (err) {
-          console.error('Erreur ouverture base de données:', err);
-          return interaction.reply({
-            embeds: [embed.error('Erreur', 'Impossible d\'ouvrir la base de données.')],
-            flags: [64]
-          });
-        }
-      });
-
-      db.get(`SELECT automod_config FROM guilds WHERE id = ?`, [guild.id], (err, row) => {
-        if (err) {
-          console.error('Erreur récupération config:', err);
-          db.close();
-          return interaction.reply({
-            embeds: [embed.error('Erreur', 'Impossible de récupérer la configuration.')],
-            flags: [64]
-          });
-        }
-
-        let config = {};
-        if (row && row.automod_config) {
-          try {
-            config = JSON.parse(row.automod_config);
-          } catch (e) {
-            config = {};
-          }
-        }
-
-        // Initialiser la configuration badwords si nécessaire
-        if (!config.badwords) {
-          config.badwords = { enabled: false, words: [] };
-        }
-        if (!config.badwords.words) {
-          config.badwords.words = [];
-        }
-
-        // Vérifier si le mot existe
-        if (!config.badwords.words.includes(word)) {
+        if (!removed) {
           return interaction.reply({
             embeds: [embed.warning('Non trouvé', 'Ce mot n\'est pas dans la liste.')],
             flags: [64]
           });
         }
 
-        // Retirer le mot
-        config.badwords.words = config.badwords.words.filter(w => w !== word);
+        // Désactiver le filtre badwords si plus de mots
+        const count = await badwordsRepo.getBadwordsCount(guild.id);
+        if (count === 0 && automod.badwords) {
+          automod.badwords.enabled = false;
+          await automodRepo.updateGuildAutomod(guild.id, automod);
+        }
 
-        // Mettre à jour la configuration
-        const updatedConfig = JSON.stringify(config);
-        db.run(`UPDATE guilds SET automod_config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-          [updatedConfig, guild.id], (err) => {
-            if (err) {
-              console.error('Erreur mise à jour config:', err);
-              return interaction.reply({
-                embeds: [embed.error('Erreur', 'Impossible de retirer le mot.')],
-                flags: [64]
-              });
-            }
+        await automodRepo.updateBadwordsCount(guild.id);
+        automodManager.clearCache(guild.id);
 
-            // Vider le cache
-            automodManager.clearCache(guild.id);
-
-            interaction.reply({
-              embeds: [embed.success('Mot retiré', 'Le mot a été retiré de la liste.')],
-              flags: [64]
-            });
-
-            db.close();
-          });
-      });
-    });
+        return interaction.reply({
+          embeds: [embed.success('Mot retiré', 'Le mot a été retiré de la liste.')],
+          flags: [64]
+        });
+      } catch (error) {
+        logger.error('Erreur retrait badword:', error);
+        return interaction.reply({
+          embeds: [embed.error('Erreur', 'Impossible de retirer le mot.')],
+          flags: [64]
+        });
+      }
   }
 }

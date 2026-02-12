@@ -13,12 +13,51 @@ CREATE TABLE IF NOT EXISTS guilds (
   log_channel_id TEXT,
   mod_log_channel_id TEXT,
   mute_role_id TEXT,
-  automod_enabled INTEGER DEFAULT 1,
-  automod_config TEXT DEFAULT '{}',
   welcome_channel_id TEXT,
   welcome_message TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table automod - Configuration AutoMod par serveur
+CREATE TABLE IF NOT EXISTS automod (
+  guild_id TEXT PRIMARY KEY,
+  enabled INTEGER DEFAULT 0,
+  exempt_roles TEXT DEFAULT '[]',
+  exempt_channels TEXT DEFAULT '[]',
+  spam_enabled INTEGER DEFAULT 1,
+  spam_max_messages INTEGER DEFAULT 5,
+  spam_time_window INTEGER DEFAULT 5000,
+  spam_max_duplicates INTEGER DEFAULT 3,
+  spam_action TEXT DEFAULT 'delete',
+  invites_enabled INTEGER DEFAULT 1,
+  invites_allow_own_server INTEGER DEFAULT 1,
+  invites_action TEXT DEFAULT 'delete',
+  badwords_enabled INTEGER DEFAULT 0,
+  badwords_detect_leet INTEGER DEFAULT 1,
+  badwords_whole_word_only INTEGER DEFAULT 0,
+  badwords_action TEXT DEFAULT 'delete',
+  badwords_count INTEGER DEFAULT 0,
+  links_enabled INTEGER DEFAULT 0,
+  links_block_all INTEGER DEFAULT 0,
+  links_action TEXT DEFAULT 'delete',
+  caps_enabled INTEGER DEFAULT 1,
+  caps_max_percentage INTEGER DEFAULT 70,
+  caps_min_length INTEGER DEFAULT 10,
+  caps_action TEXT DEFAULT 'delete',
+  mentions_enabled INTEGER DEFAULT 1,
+  mentions_max_user_mentions INTEGER DEFAULT 5,
+  mentions_max_role_mentions INTEGER DEFAULT 3,
+  mentions_block_everyone INTEGER DEFAULT 0,
+  mentions_action TEXT DEFAULT 'delete',
+  antiraid_enabled INTEGER DEFAULT 1,
+  antiraid_join_threshold INTEGER DEFAULT 10,
+  antiraid_join_window INTEGER DEFAULT 10000,
+  antiraid_account_age INTEGER DEFAULT 7,
+  antiraid_action TEXT DEFAULT 'lockdown',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
 -- Table users - Utilisateurs trackés par serveur
@@ -78,14 +117,20 @@ CREATE TABLE IF NOT EXISTS mod_logs (
   FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
--- Table automod_logs - Actions automatiques de modération
+-- Table automod_logs - Actions automatiques de modération (optimisée)
 CREATE TABLE IF NOT EXISTS automod_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guild_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  moderator_id TEXT,
+  channel_id TEXT,
+  message_id TEXT,
   trigger_type TEXT CHECK(trigger_type IN ('spam', 'links', 'invites', 'caps', 'mass_mentions', 'blacklist', 'bad_words')),
-  message_content TEXT,
+  trigger_content TEXT,
   action_taken TEXT,
+  severity INTEGER DEFAULT 1,
+  confidence_score REAL,
+  details TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
@@ -113,14 +158,24 @@ CREATE INDEX IF NOT EXISTS idx_sanctions_guild_user ON sanctions(guild_id, user_
 CREATE INDEX IF NOT EXISTS idx_sanctions_active ON sanctions(active, expires_at);
 CREATE INDEX IF NOT EXISTS idx_mod_logs_guild ON mod_logs(guild_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_automod_logs_guild ON automod_logs(guild_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_automod_logs_user ON automod_logs(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_automod_logs_guild_user ON automod_logs(guild_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_automod_logs_trigger_type ON automod_logs(trigger_type);
+CREATE INDEX IF NOT EXISTS idx_automod_logs_user ON automod_logs(user_id, trigger_type);
 CREATE INDEX IF NOT EXISTS idx_ai_logs_guild ON ai_logs(guild_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_automod_guild ON automod(guild_id);
+CREATE INDEX IF NOT EXISTS idx_automod_words_guild_word ON automod_words(guild_id, word);
 
 -- Triggers pour maintenir les timestamps à jour
 CREATE TRIGGER IF NOT EXISTS update_guilds_timestamp 
 AFTER UPDATE ON guilds
 BEGIN
   UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_automod_timestamp 
+AFTER UPDATE ON automod
+BEGIN
+  UPDATE automod SET updated_at = CURRENT_TIMESTAMP WHERE guild_id = NEW.guild_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS update_users_timestamp 

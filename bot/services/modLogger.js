@@ -3,7 +3,7 @@
 const { Collection } = require('discord.js');
 const embed = require('./embedBuilder');
 const guildRepo = require('../../database/js/repositories/guildRepo');
-const automodLogRepo = require('../../database/js/repositories/automodLogRepo');
+const automodLogsRepo = require('../../database/js/repositories/automodLogsRepo');
 const logger = require('../utils/logger');
 
 class ModLogger {
@@ -52,7 +52,7 @@ class ModLogger {
   async logAutoMod(guild, { trigger, user, channel, action, matchedContent, rule }) {
     try {
       // Enregistrer en base de données
-      await automodLogRepo.create({
+      await automodLogsRepo.addLog({
         guildId: guild.id,
         userId: user.id,
         triggerType: trigger,

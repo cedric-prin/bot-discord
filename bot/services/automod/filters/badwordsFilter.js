@@ -16,6 +16,43 @@ class BadwordsFilter {
       'spam', 'abuser', 'toxic', 'cancer', 'nazi',
       'kill', 'mort', 'suicide', 'drogue', 'toxic'
     ];
+
+    // Cache pour les mots par serveur (5 minutes)
+    this.wordsCache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000;
+  }
+
+  /**
+   * Récupérer les mots interdits pour un serveur (avec cache)
+   */
+  async getGuildBadwords(guildId) {
+    const cached = this.wordsCache.get(guildId);
+
+    if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+      return cached.words;
+    }
+
+    try {
+      const badwordsRepo = require('../../../../../database/js/repositories/badwordsRepo');
+      const words = await badwordsRepo.getGuildBadwords(guildId);
+
+      this.wordsCache.set(guildId, {
+        words,
+        timestamp: Date.now()
+      });
+
+      return words;
+    } catch (error) {
+      console.error('Erreur récupération badwords:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Vider le cache pour un serveur
+   */
+  clearCache(guildId) {
+    this.wordsCache.delete(guildId);
   }
 
   /**
@@ -23,7 +60,6 @@ class BadwordsFilter {
    */
   async check(message, config) {
     const {
-      words = [],           // Liste de mots interdits
       useDefault = true,    // Utiliser la liste par défaut
       detectLeet = true,    // Détecter le l33t speak
       wholeWordOnly = false, // Mot entier seulement
@@ -33,10 +69,13 @@ class BadwordsFilter {
 
     const content = message.content.toLowerCase();
 
+    // Récupérer les mots depuis la base de données
+    const dbWords = await this.getGuildBadwords(message.guild.id);
+
     // Construire la liste complète
     const allBadwords = useDefault
-      ? [...this.defaultBadwords, ...words]
-      : words;
+      ? [...this.defaultBadwords, ...dbWords]
+      : dbWords;
 
     if (allBadwords.length === 0 && customRegex.length === 0) {
       return { triggered: false };
