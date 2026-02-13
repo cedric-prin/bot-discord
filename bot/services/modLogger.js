@@ -289,6 +289,51 @@ class ModLogger {
   clearCache() {
     this.channelCache.clear();
   }
+
+  /**
+   * Log une action automatique (seuil de warnings atteint)
+   */
+  async logAutoAction(guild, data) {
+    try {
+      const logChannel = await this.getLogChannel(guild, 'mod');
+      if (!logChannel) return;
+
+      const embed = this.buildAutoActionEmbed(data);
+      await this.queueEmbed(guild.id, logChannel.id, embed);
+      
+      logger.info(`[AUTO-ACTION] ${data.action} sur ${data.target.tag} dans ${guild.name}`);
+    } catch (error) {
+      logger.error('Erreur lors du log d\'action automatique:', error);
+    }
+  }
+
+  /**
+   * Construit l'embed pour une action automatique
+   */
+  buildAutoActionEmbed(data) {
+    const embed = require('./embedBuilder');
+    const { EmbedBuilder } = require('discord.js');
+    
+    const actionEmojis = {
+      mute: '🔇',
+      kick: '👢', 
+      ban: '🔨'
+    };
+
+    const autoEmbed = new EmbedBuilder()
+      .setTitle(`${actionEmojis[data.action]} Action Automatique`)
+      .setColor('#FF6B6B')
+      .setDescription(`**${data.target.tag}** a reçu une sanction automatique`)
+      .addFields(
+        { name: '🎯 Action', value: data.action.toUpperCase(), inline: true },
+        { name: '👤 Utilisateur', value: data.target.tag, inline: true },
+        { name: '📝 Raison', value: data.reason, inline: false }
+      )
+      .setTimestamp()
+      .setFooter({ text: `Modérateur: ${data.moderator.tag}` });
+
+    return autoEmbed;
+  }
 }
 
 module.exports = new ModLogger();

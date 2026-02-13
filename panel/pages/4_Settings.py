@@ -37,7 +37,7 @@ def main():
             return
         
         # Parser config JSON avec gestion d'erreur
-        config_str = guild_data_raw[14] if len(guild_data_raw) > 14 else None  # automod_config (index 14)
+        config_str = guild_data_raw[12] if len(guild_data_raw) > 12 else None  # automod_config (index 12)
         
         config = {}
         
@@ -125,36 +125,51 @@ def main():
                 st.write("**Anti-Spam**")
                 spam_enabled = st.checkbox("Activer l'anti-spam", value=config.get('spam', {}).get('enabled', False), key="spam_enabled")
                 
+                # Définir les valeurs par défaut
+                spam_max = config.get('spam', {}).get('maxMessages', 5)
+                spam_window = config.get('spam', {}).get('window', 5)
+                spam_duplicates = config.get('spam', {}).get('duplicates', True)
+                spam_action = config.get('spam', {}).get('action', 'warn')
+                
                 if spam_enabled:
                     col1, col2 = st.columns(2)
                     with col1:
-                        spam_max = st.number_input("Messages max", min_value=2, max_value=10, value=config.get('spam', {}).get('maxMessages', 5))
-                        spam_window = st.number_input("Fenêtre (secondes)", min_value=1, max_value=10, value=config.get('spam', {}).get('window', 5))
+                        spam_max = st.number_input("Messages max", min_value=2, max_value=10, value=spam_max)
+                        spam_window = st.number_input("Fenêtre (secondes)", min_value=1, max_value=10, value=spam_window)
                     with col2:
-                        spam_duplicates = st.checkbox("Détecter les doublons", value=config.get('spam', {}).get('duplicates', True), key="spam_duplicates")
-                        spam_action = st.selectbox("Action", ["warn", "mute", "kick"], index=0, key="spam_action")
+                        spam_duplicates = st.checkbox("Détecter les doublons", value=spam_duplicates, key="spam_duplicates")
+                        spam_action = st.selectbox("Action", ["warn", "mute", "kick"], index=["warn", "mute", "kick"].index(spam_action), key="spam_action")
                 
                 st.write("**Anti-Invitations**")
                 invites_enabled = st.checkbox("Bloquer les invitations Discord", value=config.get('invites', {}).get('enabled', False), key="invites_enabled")
                 
+                # Définir les valeurs par défaut
+                invites_allow_server = config.get('invites', {}).get('allowServer', False)
+                invites_action = config.get('invites', {}).get('action', 'warn')
+                
                 if invites_enabled:
                     col1, col2 = st.columns(2)
                     with col1:
-                        invites_allow_server = st.checkbox("Autoriser les invitations de ce serveur", value=config.get('invites', {}).get('allowServer', False), key="invites_allow_server")
+                        invites_allow_server = st.checkbox("Autoriser les invitations de ce serveur", value=invites_allow_server, key="invites_allow_server")
                     with col2:
-                        invites_action = st.selectbox("Action", ["warn", "mute", "delete"], index=0, key="invites_action")
+                        invites_action = st.selectbox("Action", ["warn", "mute", "delete"], index=["warn", "mute", "delete"].index(invites_action), key="invites_action")
                 
                 st.write("**Anti-Bad Words**")
                 badwords_enabled = st.checkbox("Activer le filtre de mauvais mots", value=config.get('badwords', {}).get('enabled', False), key="badwords_enabled")
                 
+                # Définir les valeurs par défaut
+                badwords_list = '\n'.join(config.get('badwords', {}).get('words', []))
+                badwords_leet = config.get('badwords', {}).get('leetSpeak', True)
+                badwords_whole = config.get('badwords', {}).get('wholeWord', True)
+                
                 if badwords_enabled:
                     badwords_list = st.text_area(
                         "Mots interdits (un par ligne)",
-                        value='\n'.join(config.get('badwords', {}).get('words', [])),
+                        value=badwords_list,
                         help="Liste des mots à filtrer"
                     )
-                    badwords_leet = st.checkbox("Détecter le leet speak (ex: 4=a)", value=config.get('badwords', {}).get('leetSpeak', True), key="badwords_leet")
-                    badwords_whole = st.checkbox("Mot entier uniquement", value=config.get('badwords', {}).get('wholeWord', True), key="badwords_whole")
+                    badwords_leet = st.checkbox("Détecter le leet speak (ex: 4=a)", value=badwords_leet, key="badwords_leet")
+                    badwords_whole = st.checkbox("Mot entier uniquement", value=badwords_whole, key="badwords_whole")
                 
                 submitted = st.form_submit_button("💾 Sauvegarder AutoMod", type="primary")
                 

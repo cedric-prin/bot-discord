@@ -16,7 +16,7 @@ module.exports = {
         try {
             const sent = await interaction.reply({
                 embeds: [embed.info('🏓 Pong!', 'Calcul de la latence...')],
-                fetchReply: true
+                withResponse: true
             });
 
             // Latence API (heartbeat)

@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS guilds (
   mute_role_id TEXT,
   welcome_channel_id TEXT,
   welcome_message TEXT,
+  member_count INTEGER DEFAULT 0,
+  owner_id TEXT,
+  automod_config TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,6 +69,13 @@ CREATE TABLE IF NOT EXISTS users (
   discord_id TEXT NOT NULL,
   guild_id TEXT NOT NULL,
   username TEXT,
+  server_username TEXT,
+  avatar_url TEXT,
+  joined_at DATETIME,
+  is_active INTEGER DEFAULT 1,
+  last_seen DATETIME,
+  user_id TEXT,
+  owner_id TEXT,
   total_warnings INTEGER DEFAULT 0,
   total_sanctions INTEGER DEFAULT 0,
   risk_score INTEGER DEFAULT 0,
@@ -165,6 +175,17 @@ CREATE INDEX IF NOT EXISTS idx_ai_logs_guild ON ai_logs(guild_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_automod_guild ON automod(guild_id);
 CREATE INDEX IF NOT EXISTS idx_automod_words_guild_word ON automod_words(guild_id, word);
 
+-- Table automod_words - Mots interdits personnalisés
+CREATE TABLE IF NOT EXISTS automod_words (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  word TEXT NOT NULL,
+  type TEXT DEFAULT 'badword',
+  added_by TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+);
+
 -- Triggers pour maintenir les timestamps à jour
 CREATE TRIGGER IF NOT EXISTS update_guilds_timestamp 
 AFTER UPDATE ON guilds
@@ -182,6 +203,41 @@ CREATE TRIGGER IF NOT EXISTS update_users_timestamp
 AFTER UPDATE ON users
 BEGIN
   UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+END;
+
+-- Trigger pour mettre à jour les compteurs de warnings
+CREATE TRIGGER IF NOT EXISTS update_user_warnings_after_insert
+AFTER INSERT ON warnings
+WHEN NEW.active = 1
+BEGIN
+  UPDATE users SET 
+    total_warnings = total_warnings + 1,
+    risk_score = (total_warnings + 1) * 10 + total_sanctions * 25,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE discord_id = NEW.user_id AND guild_id = NEW.guild_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_user_warnings_after_delete
+AFTER DELETE ON warnings
+WHEN OLD.active = 1
+BEGIN
+  UPDATE users SET 
+    total_warnings = total_warnings - 1,
+    risk_score = (total_warnings - 1) * 10 + total_sanctions * 25,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE discord_id = OLD.user_id AND guild_id = OLD.guild_id;
+END;
+
+-- Trigger pour mettre à jour les compteurs de sanctions
+CREATE TRIGGER IF NOT EXISTS update_user_sanctions_after_insert
+AFTER INSERT ON sanctions
+WHEN NEW.active = 1
+BEGIN
+  UPDATE users SET 
+    total_sanctions = total_sanctions + 1,
+    risk_score = total_warnings * 10 + (total_sanctions + 1) * 25,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE discord_id = NEW.user_id AND guild_id = NEW.guild_id;
 END;
 
 -- Vue pour les statistiques de modération par serveur

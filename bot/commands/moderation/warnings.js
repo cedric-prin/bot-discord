@@ -85,7 +85,7 @@ module.exports = {
       const response = await interaction.reply({
         embeds: [warningsEmbed],
         components: totalPages > 1 ? [paginationRow] : [],
-        fetchReply: true
+        withResponse: true
       });
       
       // 8. GESTION DES INTERACTIONS BOUTONS
@@ -97,9 +97,9 @@ module.exports = {
       console.error('Erreur commande warnings:', error);
       
       // 9. GESTION D'ERREUR
-      await interaction.reply({
+      await interaction.followUp({
         embeds: [embed.error('Erreur', 'Une erreur est survenue lors de la récupération des warnings.')],
-        ephemeral: true
+        flags: [4096] // Ephemeral flag
       });
     }
   },
@@ -174,7 +174,7 @@ module.exports = {
    * Gère les interactions de pagination
    */
   async handlePagination(response, interaction, target, allWarnings, activeWarnings, currentPage, totalPages) {
-    const collector = response.createMessageComponentCollector({
+    const collector = interaction.channel.createMessageComponentCollector({
       time: 60000 // 1 minute
     });
     
@@ -183,7 +183,7 @@ module.exports = {
       if (i.user.id !== interaction.user.id) {
         return i.reply({
           content: 'Ces boutons ne sont pas pour vous.',
-          ephemeral: true
+          flags: [4096] // Ephemeral flag
         });
       }
       

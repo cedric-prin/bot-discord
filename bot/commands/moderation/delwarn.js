@@ -54,7 +54,7 @@ module.exports = {
       if (!warning) {
         return interaction.reply({
           embeds: [embed.error('Non trouvé', `Aucun warning avec l'ID **#${warningId}** n'existe.`)],
-          ephemeral: true
+          flags: [4096] // Ephemeral flag
         });
       }
       
@@ -62,7 +62,7 @@ module.exports = {
       if (warning.guildId !== guild.id) {
         return interaction.reply({
           embeds: [embed.error('Non trouvé', `Ce warning n'appartient pas à ce serveur.`)],
-          ephemeral: true
+          flags: [4096] // Ephemeral flag
         });
       }
       
@@ -70,7 +70,7 @@ module.exports = {
       if (!warning.isActive()) {
         return interaction.reply({
           embeds: [embed.warning('Déjà révoqué', `Le warning **#${warningId}** est déjà révoqué.`)],
-          ephemeral: true
+          flags: [4096] // Ephemeral flag
         });
       }
       
@@ -99,7 +99,7 @@ module.exports = {
       // 9. GESTION D'ERREUR
       await interaction.reply({
         embeds: [embed.error('Erreur', 'Une erreur est survenue lors de la suppression du warning.')],
-        ephemeral: true
+        flags: [4096] // Ephemeral flag
       });
     }
   },

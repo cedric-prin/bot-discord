@@ -52,7 +52,7 @@ module.exports = {
     if (!permCheck.allowed) {
       return interaction.reply({
         embeds: [embed.error('Permission refusée', permCheck.reason)],
-        ephemeral: true
+        flags: [4096] // Ephemeral flag
       });
     }
 
@@ -61,7 +61,7 @@ module.exports = {
     if (!targetMember) {
       return interaction.reply({
         embeds: [embed.error('Erreur', 'Utilisateur non trouvé sur ce serveur.')],
-        ephemeral: true
+        flags: [4096] // Ephemeral flag
       });
     }
 
@@ -87,6 +87,11 @@ module.exports = {
       // 8. VÉRIFICATION SEUILS AUTOMATIQUES
       const autoAction = await this.checkThresholds(guild.id, activeWarnings);
       
+      // 8.1. APPLIQUER L'ACTION AUTOMATIQUE SI NÉCESSAIRE
+      if (autoAction) {
+        await this.applyAutoAction(guild, target, moderator, autoAction);
+      }
+      
       // 9. RÉPONSE SUCCÈS
       const successEmbed = this.buildSuccessEmbed(target, reason, warning.id, activeWarnings, autoAction);
       await interaction.reply({ embeds: [successEmbed] });
@@ -107,7 +112,7 @@ module.exports = {
       // 11. GESTION D'ERREUR
       await interaction.reply({
         embeds: [embed.error('Erreur', 'Une erreur est survenue lors de la création du warning.')],
-        ephemeral: true
+        flags: [4096] // Ephemeral flag
       });
     }
   },
@@ -122,8 +127,8 @@ module.exports = {
   async ensureDatabaseEntries(guild, target, moderator) {
     try {
       await guildRepo.findOrCreate(guild.id, guild.name);
-      await userRepo.findOrCreate(target.id, target.tag);
-      await userRepo.findOrCreate(moderator.id, moderator.tag);
+      await userRepo.findOrCreate(target.id, guild.id, target.username);
+      await userRepo.findOrCreate(moderator.id, guild.id, moderator.username);
     } catch (error) {
       console.error('Erreur lors de la création des entrées BDD:', error);
       throw error;
@@ -166,27 +171,111 @@ module.exports = {
       // Récupérer les seuils personnalisés depuis la BDD
       const guildSettings = await guildRepo.getSettings(guildId);
       
-      // Seuils par défaut (peuvent être configurés par serveur)
-      const defaultThresholds = {
-        mute: 3,
-        kick: 5,
-        ban: 7
-      };
+      // Utiliser la configuration warnActions du panel si disponible
+      const warnActions = guildSettings?.automod?.warnActions || [];
       
-      const thresholds = guildSettings?.warnThresholds || defaultThresholds;
-
-      if (activeWarnings >= thresholds.ban) {
-        return { type: 'ban', count: thresholds.ban, severity: 'high' };
-      } else if (activeWarnings >= thresholds.kick) {
-        return { type: 'kick', count: thresholds.kick, severity: 'medium' };
-      } else if (activeWarnings >= thresholds.mute) {
-        return { type: 'mute', count: thresholds.mute, severity: 'low' };
+      // Chercher l'action correspondante au nombre de warnings actuels
+      for (const action of warnActions) {
+        if (activeWarnings >= action.count) {
+          const severityMap = {
+            'mute': 'low',
+            'kick': 'medium', 
+            'ban': 'high'
+          };
+          
+          return { 
+            type: action.action, 
+            count: action.count, 
+            severity: severityMap[action.action] || 'medium',
+            duration: action.duration
+          };
+        }
       }
 
       return null;
     } catch (error) {
       console.error('Erreur lors de la vérification des seuils:', error);
       return null;
+    }
+  },
+
+  /**
+   * Applique une action automatique (mute, kick, ban)
+   */
+  async applyAutoAction(guild, target, moderator, autoAction) {
+    try {
+      const timeParser = require('../../utils/timeParser');
+      const duration = autoAction.duration === 'permanent' ? null : timeParser.parse(autoAction.duration);
+      
+      let sanction;
+      
+      switch (autoAction.type) {
+        case 'mute':
+          const targetMember = await guild.members.fetch(target.id).catch(() => null);
+          if (targetMember) {
+            const durationMs = duration || null;
+            await targetMember.timeout(durationMs, `Seuil automatique - ${autoAction.count} warnings`);
+            
+            sanction = await sanctionRepo.create({
+              guildId: guild.id,
+              userId: target.id,
+              moderatorId: moderator.id,
+              type: 'mute',
+              reason: `Seuil automatique - ${autoAction.count} warnings`,
+              duration: duration ? Math.floor(duration / 1000) : null,
+              expiresAt: duration ? new Date(Date.now() + duration) : null
+            });
+          }
+          break;
+          
+        case 'kick':
+          const kickMember = await guild.members.fetch(target.id).catch(() => null);
+          if (kickMember) {
+            await kickMember.kick(`Seuil automatique - ${autoAction.count} warnings`);
+            
+            sanction = await sanctionRepo.create({
+              guildId: guild.id,
+              userId: target.id,
+              moderatorId: moderator.id,
+              type: 'kick',
+              reason: `Seuil automatique - ${autoAction.count} warnings`,
+              duration: null,
+              expiresAt: null
+            });
+          }
+          break;
+          
+        case 'ban':
+          await guild.members.ban(target, {
+            reason: `Seuil automatique - ${autoAction.count} warnings`
+          });
+          
+          sanction = await sanctionRepo.create({
+            guildId: guild.id,
+            userId: target.id,
+            moderatorId: moderator.id,
+            type: 'ban',
+            reason: `Seuil automatique - ${autoAction.count} warnings`,
+            duration: duration ? Math.floor(duration / 1000) : null,
+            expiresAt: duration ? new Date(Date.now() + duration) : null
+          });
+          break;
+      }
+      
+      // Log de l'action automatique
+      if (sanction) {
+        const modLogger = require('../../services/modLogger');
+        await modLogger.logAutoAction(guild, {
+          action: autoAction.type,
+          target: target,
+          moderator: moderator,
+          reason: `Seuil automatique - ${autoAction.count} warnings`,
+          sanction: sanction
+        });
+      }
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'application de l\'action automatique:', error);
     }
   },
 

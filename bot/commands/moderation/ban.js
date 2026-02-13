@@ -109,8 +109,8 @@ module.exports = {
       
       // S'assurer que les entrées existent en BDD
       await guildRepo.findOrCreate(guild.id, guild.name);
-      await userRepo.findOrCreate(target.id, target.tag);
-      await userRepo.findOrCreate(moderator.id, moderator.tag);
+      await userRepo.findOrCreate(target.id, guild.id, target.username);
+      await userRepo.findOrCreate(moderator.id, guild.id, moderator.username);
       
       // Enregistrer la sanction
       const sanction = await sanctionRepo.create({

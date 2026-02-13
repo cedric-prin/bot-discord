@@ -56,6 +56,9 @@ const guildRepo = {
   findOrCreate(guildId, guildName) {
     // Atomique: transaction + INSERT OR IGNORE + SELECT
     return new Promise((resolve, reject) => {
+      const { getDb } = require('../index');
+      const db = getDb();
+      
       db.serialize(() => {
         db.run('BEGIN IMMEDIATE', (beginErr) => {
           if (beginErr) return reject(beginErr);

@@ -110,8 +110,8 @@ module.exports = {
 
       // S'assurer que les entrées existent en BDD
       await guildRepo.findOrCreate(guild.id, guild.name);
-      await userRepo.findOrCreate(target.id, target.tag);
-      await userRepo.findOrCreate(moderatorUser.id, guild.id, moderatorUser.tag);
+      await userRepo.findOrCreate(target.id, guild.id, target.username);
+      await userRepo.findOrCreate(moderatorUser.id, guild.id, moderatorUser.username);
 
       // Enregistrer la sanction (duration en secondes pour la BDD)
       const durationSeconds = Math.floor(durationMs / 1000);

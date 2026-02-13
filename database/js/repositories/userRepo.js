@@ -1,34 +1,7 @@
 // Repo User - opérations CRUD
 
-const db = require('../index');
+const { dbGet, dbRun, dbAll } = require('../index');
 const User = require('../models/User');
-
-function dbGet(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
-}
-
-function dbAll(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows || []);
-    });
-  });
-}
-
-function dbRun(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function runCb(err) {
-      if (err) return reject(err);
-      resolve({ changes: this.changes, lastID: this.lastID });
-    });
-  });
-}
 
 const ALLOWED_UPDATE_FIELDS = new Set([
   'username',
@@ -68,6 +41,9 @@ const userRepo = {
   findOrCreate(discordId, guildId, username = '') {
     // Atomique: transaction + INSERT OR IGNORE + SELECT
     return new Promise((resolve, reject) => {
+      const { getDb } = require('../index');
+      const db = getDb();
+      
       db.serialize(() => {
         db.run('BEGIN IMMEDIATE', (beginErr) => {
           if (beginErr) return reject(beginErr);

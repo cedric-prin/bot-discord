@@ -83,5 +83,6 @@ module.exports = {
     db,
     dbGet,
     dbRun,
-    dbAll
+    dbAll,
+    getDb: () => db
 };

@@ -1,4 +1,4 @@
-const db = require('./index');
+const { dbRun } = require('./index');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../../bot/utils/logger');
@@ -7,7 +7,8 @@ const logger = require('../../bot/utils/logger');
 const schemaPath = path.join(__dirname, '../schema-unified.sql');
 
 // Activer les clés étrangères
-db.run('PRAGMA foreign_keys = ON');
+const { getDb } = require('./index');
+getDb().run('PRAGMA foreign_keys = ON');
 
 // Fonction pour initialiser la base de données avec le schéma unifié
 async function initializeDatabase() {
@@ -22,7 +23,7 @@ async function initializeDatabase() {
     
     for (const statement of statements) {
       await new Promise((resolve, reject) => {
-        db.run(statement.trim(), (err) => {
+        getDb().run(statement.trim(), (err) => {
           if (err && !err.message.includes('already exists')) {
             logger.error('Erreur lors de l\'exécution du schéma:', err.message);
             reject(err);

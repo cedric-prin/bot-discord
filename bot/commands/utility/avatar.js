@@ -43,9 +43,11 @@ module.exports = {
       // Créer l'embed
       const avatarEmbed = embed.create({
         title: title,
-        image: avatarURL,
         color: member?.displayHexColor !== '#000000' ? member.displayHexColor : 0x5865F2
       });
+      
+      // Ajouter l'image séparément
+      avatarEmbed.setImage(avatarURL);
       
       // Boutons pour différents formats
       const row = new ActionRowBuilder().addComponents(
@@ -92,7 +94,7 @@ module.exports = {
       logger.error('Erreur commande avatar:', error);
       return interaction.reply({
         embeds: [embed.error('Erreur', 'Une erreur est survenue.')],
-        ephemeral: true
+        flags: [4096] // Ephemeral flag
       });
     }
   }
